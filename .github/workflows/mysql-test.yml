@@ -1,0 +1,48 @@
+name: MySQL Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: energyauditdb
+          MYSQL_USER: sdmi
+          MYSQL_PASSWORD: SMD1SQLADM1N
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install Dependencies
+        run: npm install
+        
+      - name: Run Tests
+        run: npm run test:emergency
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: sdmi
+          DB_PASS: SMD1SQLADM1N
+          DB_NAME: energyauditdb
+          NODE_ENV: test 

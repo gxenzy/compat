@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: energyauditdb
+      MYSQL_USER: sdmi
+      MYSQL_PASSWORD: SMD1SQLADM1N
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - PORT=8000
+      - NODE_ENV=development
+      - DB_HOST=mysql
+      - DB_USER=sdmi
+      - DB_PASS=SMD1SQLADM1N
+      - DB_NAME=energyauditdb
+      - JWT_SECRET=e465aa6a212abe4bb21fb3218aa044ed2be68720b46298c20b22f861ab7324f3d299f35ec4720e2ab57a03e4810a7a885e5aac6c1
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_WS_URL=ws://localhost:8000
+      - REACT_APP_TITLE=Energy Audit Panel
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  mysql-data: 

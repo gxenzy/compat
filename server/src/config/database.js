@@ -20,18 +20,31 @@ console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_PASS:', process.env.DB_PASS);
 console.log('DB_NAME:', process.env.DB_NAME);
 
-// Create MySQL connection pool
-const pool = mysql.createPool({
+// Database configuration
+const config = {
   host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'sdmi',
-  password: process.env.DB_PASS,
+  password: process.env.DB_PASS || 'SMD1SQLADM1N',
   database: process.env.DB_NAME || 'energyauditdb',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  multipleStatements: true
-});
+  queueLimit: 0
+};
+
+// Create the connection pool
+const pool = mysql.createPool(config);
+
+// Export a function to get a connection from the pool
+const getConnection = async () => {
+  try {
+    const connection = await pool.getConnection();
+    console.log('Connected to MySQL database');
+    return connection;
+  } catch (error) {
+    console.error('Error connecting to MySQL database:', error);
+    throw error;
+  }
+};
 
 // Helper functions for database queries
 const query = async (text, params = []) => {
@@ -152,18 +165,9 @@ async function setupDatabase() {
 // Setup database on server startup
 setupDatabase();
 
-// Test the connection
-pool.getConnection()
-  .then(connection => {
-    console.log('Database connected successfully');
-    connection.release();
-  })
-  .catch(error => {
-    console.error('Error connecting to database:', error);
-  });
-
-module.exports = { 
+module.exports = {
   pool,
+  getConnection,
   query,
   transaction
 }; 
