@@ -30,8 +30,7 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { useEnergyAudit } from '../contexts/EnergyAuditContext';
-import useEnergyAuditRealTime from '../hooks/useEnergyAuditRealTime';
-import { UserPresence } from '../services/energyAuditWebSocketService';
+import useEnergyAuditRealTime, { User, UserPresence } from '../hooks/useEnergyAuditRealTime';
 
 interface RealTimeIndicatorProps {
   auditId?: string;
@@ -60,18 +59,28 @@ const hashString = (str: string): number => {
 /**
  * Helper function to format timestamps to relative time
  */
-const formatTimeAgo = (timestamp: number): string => {
-  const now = Date.now();
-  const seconds = Math.floor((now - timestamp) / 1000);
-  
-  if (seconds < 60) {
-    return `${seconds} sec ago`;
-  } else if (seconds < 3600) {
-    return `${Math.floor(seconds / 60)} min ago`;
-  } else if (seconds < 86400) {
-    return `${Math.floor(seconds / 3600)} hr ago`;
-  } else {
-    return `${Math.floor(seconds / 86400)} days ago`;
+const formatTimeAgo = (timestamp: number | string): string => {
+  try {
+    const timestampAsNumber = typeof timestamp === 'string' ? Date.parse(timestamp) : timestamp;
+    
+    if (isNaN(timestampAsNumber)) {
+      return 'recently';
+    }
+    
+    const now = Date.now();
+    const seconds = Math.floor((now - timestampAsNumber) / 1000);
+    
+    if (seconds < 60) {
+      return `${seconds} sec ago`;
+    } else if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)} min ago`;
+    } else if (seconds < 86400) {
+      return `${Math.floor(seconds / 3600)} hr ago`;
+    } else {
+      return `${Math.floor(seconds / 86400)} days ago`;
+    }
+  } catch (error) {
+    return 'recently';
   }
 };
 
@@ -103,7 +112,7 @@ const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({
     syncStatus: hookSyncStatus,
     refreshWithNotification
   } = auditId ? useEnergyAuditRealTime(auditId) : {
-    activeUsers: [],
+    activeUsers: [] as User[],
     isConnected: hasRealTimeConnections,
     syncStatus: 'idle' as const,
     refreshWithNotification: undefined
@@ -116,7 +125,7 @@ const RealTimeIndicator: React.FC<RealTimeIndicatorProps> = ({
   );
   
   // Convert the hook's syncStatus to the component's expected status format
-  const hookMappedStatus = hookSyncStatus === 'completed' ? 'synced' : 
+  const hookMappedStatus = hookSyncStatus === 'synced' ? 'synced' : 
                            hookSyncStatus === 'error' ? 'error' : 
                            hookSyncStatus === 'syncing' ? 'syncing' : 
                            'pending';

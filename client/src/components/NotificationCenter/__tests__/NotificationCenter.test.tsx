@@ -8,6 +8,13 @@ import useEnergyAuditRealTime from '../../../../hooks/useEnergyAuditRealTime';
 jest.mock('../../../../contexts/EnergyAuditContext');
 jest.mock('../../../../hooks/useEnergyAuditRealTime');
 
+// Define NotificationCenterProps interface to match component implementation
+interface NotificationCenterProps {
+  onNavigate?: (route: string) => void;
+  compact?: boolean;
+  maxItems?: number;
+}
+
 describe('NotificationCenter Component', () => {
   const mockLogActivity = jest.fn();
   const mockSubscribeToEvent = jest.fn();
@@ -91,6 +98,7 @@ describe('NotificationCenter Component', () => {
   });
 
   it('navigates when clicking notification with action', () => {
+    // Now we specify the onNavigate prop, which is properly typed
     render(<NotificationCenter onNavigate={mockNavigate} />);
     
     // Open notification panel

@@ -5,11 +5,9 @@ client/node_modules/
 .pnp.js
 
 # Testing
-/coverage
 
 # Production
 # /build
-client/build/
 
 # Misc
 .DS_Store
@@ -24,8 +22,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # IDE
-.vscode/
-.idea/
 
 # Build outputs
 
@@ -77,7 +73,6 @@ desktop.ini
 *~
 
 # Local Netlify folder
-.netlify
 
 # Environment files
 # .env
@@ -88,21 +83,15 @@ desktop.ini
 /server/node_modules
 # /server/.env
 /server/logs
-/server/dist
 
 # Client
 /client/node_modules
 # /client/.env
 # /client/.env.local
-/client/build
-/client/dist
-/client/coverage
+
 
 # IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+
 
 # Logs
 logs

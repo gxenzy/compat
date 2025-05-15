@@ -20,7 +20,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
-import useEnergyAuditRealTime from '../../../../hooks/useEnergyAuditRealTime';
+import useEnergyAuditRealTime, { User } from '../../../../hooks/useEnergyAuditRealTime';
 
 interface AuditTableContainerProps extends AuditTableProps {
   errorMessage?: string;

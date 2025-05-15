@@ -12,7 +12,12 @@ import {
   IconButton,
   Tooltip,
   Collapse,
-  Chip
+  Chip,
+  Menu,
+  MenuItem,
+  Tabs,
+  Tab,
+  Button
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
@@ -26,6 +31,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import useEnergyAuditRealTime from '../../hooks/useEnergyAuditRealTime';
 
 // Define notification types
 export type NotificationType = 'info' | 'warning' | 'success' | 'error' | 'activity' | 'system';
@@ -33,257 +39,288 @@ export type NotificationType = 'info' | 'warning' | 'success' | 'error' | 'activ
 export interface Notification {
   id: string;
   type: NotificationType;
+  title?: string;
   message: string;
   timestamp: number;
   read: boolean;
   details?: any;
+  action?: string;
 }
 
-interface NotificationCenterProps {
-  notifications?: Notification[];
-  maxHeight?: string | number;
-  showTitle?: boolean;
+// Define props interface
+export interface NotificationCenterProps {
+  onNavigate?: (route: string) => void;
   compact?: boolean;
+  maxItems?: number;
+  notifications?: Notification[];
   onClearAll?: () => void;
   onClearOne?: (id: string) => void;
   onNotificationClick?: (notification: Notification) => void;
 }
 
-const NotificationCenter: React.FC<NotificationCenterProps> = ({
-  notifications = [],
-  maxHeight = 300,
-  showTitle = true,
+// Mock notification data for development
+const mockNotifications: Notification[] = [
+  {
+    id: '1',
+    type: 'warning',
+    title: 'Energy Usage Anomaly',
+    message: 'Detected 25% increase in energy consumption',
+    timestamp: Date.now() - 3600000,
+    read: false,
+    action: '/energy-audit/monitoring/anomaly/456'
+  },
+  {
+    id: '2',
+    type: 'info',
+    title: 'Scheduled Audit',
+    message: 'Upcoming audit scheduled for next week',
+    timestamp: Date.now() - 86400000,
+    read: false,
+    action: '/energy-audit/calendar'
+  },
+  {
+    id: '3',
+    type: 'success',
+    title: 'Audit Completed',
+    message: 'Final report is ready for review',
+    timestamp: Date.now() - 172800000,
+    read: true,
+    action: '/energy-audit/report/123'
+  }
+];
+
+const NotificationCenter: React.FC<NotificationCenterProps> = ({ 
+  onNavigate,
   compact = false,
+  maxItems = 10,
+  notifications: externalNotifications,
   onClearAll,
   onClearOne,
-  onNotificationClick
+  onNotificationClick: externalNotificationClick
 }) => {
-  const [expanded, setExpanded] = useState(!compact);
-  const [notifs, setNotifs] = useState<Notification[]>([]);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifications, setNotifications] = useState<Notification[]>(externalNotifications || mockNotifications);
+  const [currentTab, setCurrentTab] = useState(0);
+  const [muted, setMuted] = useState(false);
   
+  // Use the real-time hook
+  const { subscribeToEvent } = useEnergyAuditRealTime();
+  
+  // Update notifications when external notifications change
   useEffect(() => {
-    if (notifications.length > 0) {
-      setNotifs(notifications);
-    } else {
-      // Mock notifications if none provided
-      setNotifs([
-        {
-          id: '1',
-          type: 'info',
-          message: 'Energy audit data synchronized',
-          timestamp: Date.now() - 3600000,
-          read: true
-        },
-        {
-          id: '2',
-          type: 'warning',
-          message: 'Missing required measurements in HVAC section',
-          timestamp: Date.now() - 1800000,
-          read: false
-        },
-        {
-          id: '3',
-          type: 'success',
-          message: 'Report generation completed',
-          timestamp: Date.now() - 900000,
-          read: false
-        },
-        {
-          id: '4',
-          type: 'error',
-          message: 'Failed to save lighting calculation',
-          timestamp: Date.now() - 300000,
-          read: false
-        }
-      ]);
+    if (externalNotifications) {
+      setNotifications(externalNotifications);
     }
-  }, [notifications]);
-
-  const unreadCount = notifs.filter(n => !n.read).length;
+  }, [externalNotifications]);
   
-  const getNotificationIcon = (type: NotificationType) => {
-    switch (type) {
-      case 'info':
-        return <InfoIcon color="info" />;
-      case 'warning':
-        return <WarningIcon color="warning" />;
-      case 'error':
-        return <ErrorIcon color="error" />;
-      case 'success':
-        return <SuccessIcon color="success" />;
-      case 'activity':
-        return <AccessTimeIcon color="action" />;
-      default:
-        return <InfoIcon color="disabled" />;
-    }
+  // Calculate unread count
+  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // Subscribe to real-time events
+  useEffect(() => {
+    // Subscribe to various events that would generate notifications
+    const unsubscribe1 = subscribeToEvent('auditCreated', handleNotificationEvent);
+    const unsubscribe2 = subscribeToEvent('auditUpdated', handleNotificationEvent);
+    const unsubscribe3 = subscribeToEvent('findingCreated', handleNotificationEvent);
+    const unsubscribe4 = subscribeToEvent('auditCommentAdded', handleNotificationEvent);
+    const unsubscribe5 = subscribeToEvent('syncCompleted', handleNotificationEvent);
+    
+    return () => {
+      // Clean up subscriptions
+      unsubscribe1();
+      unsubscribe2();
+      unsubscribe3();
+      unsubscribe4();
+      unsubscribe5();
+    };
+  }, []);
+  
+  // Handle notification event
+  const handleNotificationEvent = (event: any) => {
+    // Add new notification based on event
+    const newNotification: Notification = {
+      id: `notification-${Date.now()}`,
+      type: 'info',
+      title: event.type || 'New Event',
+      message: event.data?.message || 'You have a new notification',
+      timestamp: Date.now(),
+      read: false,
+      action: event.data?.action
+    };
+    
+    setNotifications(prev => [newNotification, ...prev]);
   };
   
-  const handleClearAll = () => {
-    if (onClearAll) {
-      onClearAll();
-    } else {
-      setNotifs([]);
-    }
+  // Handle opening the notification panel
+  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
   
-  const handleClearOne = (id: string) => {
+  // Handle closing the notification panel
+  const handleCloseMenu = () => {
+    setAnchorEl(null);
+  };
+  
+  // Handle tab change
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
+  };
+  
+  // Mark a notification as read
+  const markAsRead = (id: string) => {
     if (onClearOne) {
       onClearOne(id);
     } else {
-      setNotifs(prev => prev.filter(n => n.id !== id));
-    }
-  };
-  
-  const handleNotificationClick = (notification: Notification) => {
-    if (onNotificationClick) {
-      onNotificationClick(notification);
-    } else {
-      // Mark as read
-      setNotifs(prev => 
-        prev.map(n => 
-          n.id === notification.id ? { ...n, read: true } : n
-        )
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
     }
   };
   
-  // Compact version
+  // Handle clicking a notification
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    
+    if (externalNotificationClick) {
+      externalNotificationClick(notification);
+    } else if (notification.action && onNavigate) {
+      onNavigate(notification.action);
+    }
+    
+    handleCloseMenu();
+  };
+  
+  // Mark all notifications as read
+  const markAllAsRead = () => {
+    if (onClearAll) {
+      onClearAll();
+    } else {
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      );
+    }
+  };
+  
+  // Toggle mute state
+  const toggleMute = () => {
+    setMuted(!muted);
+  };
+  
+  // Filter notifications based on current tab
+  const filteredNotifications = currentTab === 0
+    ? notifications
+    : notifications.filter(n => !n.read);
+  
+  // Limited notifications based on maxItems
+  const displayedNotifications = filteredNotifications.slice(0, maxItems);
+  
+  // Simple component for compact mode
   if (compact) {
     return (
       <Box>
-        <Tooltip title={`${unreadCount} unread notifications`}>
-          <IconButton color={unreadCount > 0 ? "primary" : "default"}>
-            <Badge badgeContent={unreadCount} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
+        <Typography variant="subtitle1">Recent Activity</Typography>
+        <Divider />
+        {displayedNotifications.length > 0 ? (
+          displayedNotifications.map(notification => (
+            <MenuItem 
+              key={notification.id}
+              onClick={() => handleNotificationClick(notification)}
+            >
+              <Box>
+                <Typography variant="body2" fontWeight="bold">
+                  {notification.title || notification.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {notification.message}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+            No notifications
+          </Typography>
+        )}
       </Box>
     );
   }
   
+  // Full notification center
   return (
-    <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Badge badgeContent={unreadCount} color="error" sx={{ mr: 1 }}>
+    <>
+      <IconButton
+        color="inherit"
+        onClick={handleOpenMenu}
+        aria-label="Notifications"
+      >
+        <Badge badgeContent={unreadCount} color="error">
           <NotificationsIcon />
         </Badge>
+      </IconButton>
+      
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleCloseMenu}
+        PaperProps={{
+          sx: {
+            width: 320,
+            maxHeight: 500
+          }
+        }}
+      >
+        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Notifications</Typography>
+          <Box>
+            <Button size="small" onClick={markAllAsRead}>
+              Mark All as Read
+            </Button>
+            <Button size="small" onClick={toggleMute}>
+              {muted ? 'Unmute Notifications' : 'Mute Notifications'}
+            </Button>
+          </Box>
+        </Box>
         
-        {showTitle && (
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Notifications
+        <Divider />
+        
+        <Tabs value={currentTab} onChange={handleTabChange} centered>
+          <Tab label="All" />
+          <Tab label={`Unread (${unreadCount})`} />
+        </Tabs>
+        
+        <Divider />
+        
+        {displayedNotifications.length > 0 ? (
+          displayedNotifications.map(notification => (
+            <MenuItem 
+              key={notification.id}
+              onClick={() => handleNotificationClick(notification)}
+              sx={{
+                borderLeft: notification.read ? 'none' : '3px solid',
+                borderLeftColor: 'primary.main',
+                py: 1
+              }}
+            >
+              <Box>
+                <Typography variant="body1">
+                  {notification.title || notification.type}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {notification.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(notification.timestamp).toLocaleString()}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+            No notifications
           </Typography>
         )}
-        
-        {notifs.length > 0 && (
-          <Tooltip title="Clear all notifications">
-            <IconButton size="small" onClick={handleClearAll}>
-              <ClearIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-        
-        <IconButton 
-          size="small" 
-          onClick={() => setExpanded(!expanded)} 
-          sx={{ ml: 1 }}
-        >
-          {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-        </IconButton>
-      </Box>
-      
-      <Divider />
-      
-      <Collapse in={expanded} timeout="auto">
-        <Box 
-          sx={{ 
-            flexGrow: 1, 
-            overflow: 'auto',
-            maxHeight,
-            mt: 1
-          }}
-        >
-          {notifs.length === 0 ? (
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{ p: 2, textAlign: 'center' }}
-            >
-              No notifications
-            </Typography>
-          ) : (
-            <List dense>
-              {notifs.map((notification) => (
-                <ListItem 
-                  key={notification.id}
-                  sx={{ 
-                    bgcolor: notification.read ? 'transparent' : 'action.hover',
-                    borderRadius: 1,
-                    mb: 0.5,
-                    cursor: 'pointer',
-                    '&:hover': {
-                      bgcolor: 'action.selected'
-                    }
-                  }}
-                  secondaryAction={
-                    <IconButton 
-                      edge="end" 
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClearOne(notification.id);
-                      }}
-                    >
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  }
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    {getNotificationIcon(notification.type)}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Typography 
-                          variant="body2" 
-                          component="span"
-                          sx={{ fontWeight: notification.read ? 'normal' : 'medium' }}
-                        >
-                          {notification.message}
-                        </Typography>
-                        <Chip 
-                          label={notification.type}
-                          size="small"
-                          color={
-                            notification.type === 'error' ? 'error' :
-                            notification.type === 'warning' ? 'warning' :
-                            notification.type === 'success' ? 'success' :
-                            'default'
-                          }
-                          sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                        />
-                      </Box>
-                    }
-                    secondary={
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'flex', alignItems: 'center' }}
-                      >
-                        <AccessTimeIcon sx={{ fontSize: '0.8rem', mr: 0.5 }} />
-                        {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true })}
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Box>
-      </Collapse>
-    </Paper>
+      </Menu>
+    </>
   );
 };
 

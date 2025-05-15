@@ -13,13 +13,13 @@ export interface WebSocketEvent<T = any> {
 // Update User interface with needed properties
 export interface User {
   id: string;
-  userId: string;  // Added
-  userName: string; // Added
+  userId: string;
+  userName: string;
   name: string;
   role: string;
-  status: 'online' | 'away' | 'offline'; // Added
-  currentView?: string; // Added
-  lastActivity?: string; // Added
+  status: 'online' | 'away' | 'offline';
+  currentView?: string;
+  lastActivity?: string;
 }
 
 // Define UserPresence separate type
@@ -39,13 +39,13 @@ interface UseEnergyAuditRealTimeReturn {
   syncStatus: 'syncing' | 'synced' | 'error';
   subscribeToEvent: <T>(eventType: string, callback: (event: WebSocketEvent<T>) => void) => () => void;
   refreshWithNotification: (message?: string) => Promise<boolean>;
-  // Add missing methods
   updateUserPresence: (status: 'online' | 'away' | 'offline', activity?: string) => void;
   notifySyncCompleted: (message?: string) => void;
 }
 
 /**
  * Hook for real-time energy audit data updates and synchronization
+ * (Local version to resolve import issues)
  */
 const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -58,6 +58,30 @@ const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn 
     if (auditId) {
       // Connect to WebSocket in real implementation
       setIsConnected(true);
+      
+      // Simulate active users for demo
+      setActiveUsers([
+        {
+          id: '1',
+          userId: '1',
+          userName: 'Current User',
+          name: 'Current User',
+          role: 'admin',
+          status: 'online',
+          currentView: 'fieldData',
+          lastActivity: new Date().toISOString()
+        },
+        {
+          id: '2',
+          userId: '2',
+          userName: 'John Doe',
+          name: 'John Doe',
+          role: 'editor',
+          status: 'online',
+          currentView: 'dashboard',
+          lastActivity: new Date().toISOString()
+        }
+      ]);
     }
     
     return () => {
@@ -91,6 +115,17 @@ const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn 
       // Simulating API call delay
       await new Promise(resolve => setTimeout(resolve, 300));
       
+      // Notify others about the refresh
+      const event: WebSocketEvent = {
+        type: 'refresh',
+        auditId: auditId || '',
+        timestamp: new Date().toISOString(),
+        userId: '1',
+        userName: 'Current User',
+        data: { message: message || 'Data refreshed' }
+      };
+      
+      setLastEvent(event);
       setSyncStatus('synced');
       return true;
     } catch (error) {
@@ -98,7 +133,7 @@ const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn 
       setSyncStatus('error');
       return false;
     }
-  }, []);
+  }, [auditId]);
 
   /**
    * Update user presence information
@@ -106,6 +141,20 @@ const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn 
   const updateUserPresence = useCallback((status: 'online' | 'away' | 'offline', activity?: string): void => {
     // Would send presence update to server in a real implementation
     console.log(`User status updated to ${status}${activity ? ` (${activity})` : ''}`);
+    
+    // Update local user state
+    setActiveUsers(prev => 
+      prev.map(user => 
+        user.id === '1' 
+          ? { 
+              ...user, 
+              status, 
+              currentView: activity || user.currentView,
+              lastActivity: new Date().toISOString()
+            } 
+          : user
+      )
+    );
   }, []);
 
   /**
@@ -115,7 +164,19 @@ const useEnergyAuditRealTime = (auditId?: string): UseEnergyAuditRealTimeReturn 
     // Would send sync completed notification in a real implementation
     console.log(`Sync completed${message ? `: ${message}` : ''}`);
     setSyncStatus('synced');
-  }, []);
+    
+    // Create a sync event
+    const event: WebSocketEvent = {
+      type: 'sync_completed',
+      auditId: auditId || '',
+      timestamp: new Date().toISOString(),
+      userId: '1',
+      userName: 'Current User',
+      data: { message: message || 'Sync completed' }
+    };
+    
+    setLastEvent(event);
+  }, [auditId]);
   
   return {
     isConnected,

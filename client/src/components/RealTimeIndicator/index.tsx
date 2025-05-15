@@ -28,8 +28,7 @@ import {
   Person as PersonIcon,
   PersonOutline as PersonOutlineIcon
 } from '@mui/icons-material';
-import useEnergyAuditRealTime from '../../hooks/useEnergyAuditRealTime';
-import { UserPresence } from '../../services/energyAuditWebSocketService';
+import useEnergyAuditRealTime, { User } from '../../hooks/useEnergyAuditRealTime';
 
 type SyncStatusType = 'synced' | 'syncing' | 'error' | 'offline' | 'pending';
 

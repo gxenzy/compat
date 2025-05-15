@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import useEnergyAuditRealTime, { WebSocketEvent, UserPresence } from './useEnergyAuditRealTime';
 
-// Define ActivityLogEvent interface directly to avoid import errors
-interface ActivityLogEvent {
+// Define ActivityLogEvent interface directly
+export interface ActivityLogEvent {
   id: string;
   type: string;
   message: string;
@@ -12,15 +12,9 @@ interface ActivityLogEvent {
   details?: any;
 }
 
-// Extend the WebSocketEvent interface to include the id property
-declare module './useEnergyAuditRealTime' {
-  interface WebSocketEvent {
-    id?: string;
-  }
-}
-
 /**
  * Custom hook to combine real-time features with activity tracking
+ * (Local version to resolve import issues)
  */
 const useEnergyAuditRealTimeActivity = (auditId: string) => {
   const realTimeState = useEnergyAuditRealTime(auditId);
@@ -53,7 +47,7 @@ const useEnergyAuditRealTimeActivity = (auditId: string) => {
     // Add new events to activity log
     if (realTimeState.lastEvent && realTimeState.lastEvent.type !== 'heartbeat') {
       const newActivity: ActivityLogEvent = {
-        id: realTimeState.lastEvent.id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: (realTimeState.lastEvent as any).id || `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         timestamp: realTimeState.lastEvent.timestamp || Date.now(),
         type: realTimeState.lastEvent.type,
         message: `${realTimeState.lastEvent.userName || 'Unknown User'} performed ${realTimeState.lastEvent.type}`,

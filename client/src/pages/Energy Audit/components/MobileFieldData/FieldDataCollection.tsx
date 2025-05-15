@@ -61,13 +61,14 @@ import {
   Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 
 // Import the hooks and services
 import { useEnergyAudit } from '../../../../contexts/EnergyAuditContext';
-import useEnergyAuditSync from '../../../../hooks/useEnergyAuditSync';
+import useEnergyAuditSync from './useEnergyAuditSync';
 import energyAuditService, { FieldDataPoint, AuditArea } from '../../../../services/energyAuditService';
-import useEnergyAuditRealTime from '../../../../hooks/useEnergyAuditRealTime';
-import useEnergyAuditRealTimeActivity from '../../../../hooks/useEnergyAuditRealTimeActivity';
+import useEnergyAuditRealTime from './useEnergyAuditRealTime';
+import useEnergyAuditRealTimeActivity from './useEnergyAuditRealTimeActivity';
 import RealTimeIndicator from '../../../../components/RealTimeIndicator';
 import SimpleActivityLog from '../../../../components/SimpleActivityLog';
 // Define ActivityLogEvent interface locally
@@ -358,8 +359,8 @@ const FieldDataCollection: React.FC = () => {
       const dataPointsData = await energyAuditService.getFieldDataPoints(currentAuditId);
       setDataPoints(dataPointsData);
       
-      // Notify other clients about the sync
-      notifySyncCompleted(currentAuditId, 'success');
+      // Notify other clients about the sync - fixed notifySyncCompleted call
+      notifySyncCompleted('Data synchronized successfully');
       
       // Update last sync time
       setLastDataSync(new Date().toISOString());
@@ -383,8 +384,8 @@ const FieldDataCollection: React.FC = () => {
       setSnackbarOpen(true);
       setSyncStatus('error');
       
-      // Notify other clients about the failed sync
-      notifySyncCompleted(currentAuditId, 'error');
+      // Notify other clients about the failed sync - fixed
+      notifySyncCompleted('Failed to synchronize data');
       
       // Log sync error
       logAuditActivity(
@@ -441,8 +442,8 @@ const FieldDataCollection: React.FC = () => {
         savedDataPoint = await energyAuditService.createFieldDataPoint(newDataPoint);
         setSnackbarMessage('Data point saved');
         
-        // When we save successfully to the server, notify about the sync
-        notifySyncCompleted(currentAuditId, 'success');
+        // When we save successfully to the server, notify about the sync - fixed
+        notifySyncCompleted('Data point saved successfully');
       }
       
       // Add to local state
@@ -605,8 +606,8 @@ const FieldDataCollection: React.FC = () => {
         auditId={currentAuditId}
         syncStatus={syncStatus}
         onRefresh={async () => {
-          if (refreshActivityWithNotification) {
-            await refreshActivityWithNotification();
+          if (refreshWithNotification) {
+            await refreshWithNotification();
           }
           return true;
         }}
@@ -1159,9 +1160,3 @@ const FieldDataCollection: React.FC = () => {
 };
 
 export default FieldDataCollection; 
-
-// Helper function for Chip color
-const alpha = (color: string, opacity: number) => {
-  const _opacity = Math.round(Math.min(Math.max(opacity || 1, 0), 1) * 255);
-  return color + _opacity.toString(16).toUpperCase().padStart(2, '0');
-}; 

@@ -220,23 +220,7 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
                 }
               }}
             >
-              <Box 
-                sx={{ 
-                  width: 36, 
-                  height: 36, 
-                  bgcolor: theme.palette.primary.main,
-                  borderRadius: '50%', 
-                  display: 'flex',
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: 20,
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                }}
-              >
-                C
-              </Box>
+              
             </Box>
             <Typography 
               variant="h6" 

@@ -1,0 +1,16 @@
+{
+    "cursor.composer.shouldChimeAfterChatFinishes": true,
+    "remote.autoForwardPortsSource": "process",
+    "editor.codeActionsOnSave": {
+
+    },
+    "remote.otherPortsAttributes": {
+        "onAutoForward": "notify"
+    },
+    "remote.SSH.defaultForwardedPorts": [
+        
+
+    ],
+    "remote.forwardOnOpen": true,
+    "remote.restoreForwardedPorts": true
+}

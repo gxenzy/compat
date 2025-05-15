@@ -27,7 +27,7 @@ import {
 import Dashboard from './Dashboard';
 
 // Import individual component implementations 
-// wagtangon sa:  import BuildingVisualization from './components/BuildingVisualization';
+  import BuildingVisualization from './components/BuildingVisualization';
 import StandardsReference from './components/StandardsReference';
 import EnergyConsumptionAnalytics from './components/Analytics/EnergyConsumptionAnalytics';
 import ROICalculatorComponent from './components/ROICalculator/ROICalculatorComponent';
@@ -59,12 +59,12 @@ const PredictiveMaintenanceModel = () => (
   </Box>
 );
 
-// wagtangon sa:const BuildingViewer = () => (
- // wagtangon sa: <Box sx={{ p: 3, textAlign: 'center' }}>
- // wagtangon sa:   <Typography variant="h4" gutterBottom>Building Visualization</Typography>
- // wagtangon sa:   <Typography variant="body1">This component will be implemented as part of the Energy Audit system.</Typography>
- // wagtangon sa: </// wagtangon sa:Box>
-// wagtangon sa:);
+const BuildingViewer = () => (
+  <Box sx={{ p: 3, textAlign: 'center' }}>
+    <Typography variant="h4" gutterBottom>Building Visualization</Typography>
+    <Typography variant="body1">This component will be implemented as part of the Energy Audit system.</Typography>
+  </Box>
+);
 
 const StandardsCompliance = () => (
   <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -136,12 +136,12 @@ const EnergyAuditRouter: React.FC = () => {
       icon: <DashboardIcon />,
       component: <Dashboard />
     },
-   // wagtangon sa: {
-   // wagtangon sa:   label: 'Building Visualization',
-   // wagtangon sa:   value: 'building-visualization',
-   // wagtangon sa:   icon: <ViewInArIcon />,
-   // wagtangon sa:   component: <BuildingVisualization />
-   // wagtangon sa: },
+    {
+      label: 'Building Visualization',
+      value: 'building-visualization',
+      icon: <ViewInArIcon />,
+      component: <BuildingVisualization />
+    },
     {
       label: 'Standards Reference',
       value: 'standards-reference',

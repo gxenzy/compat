@@ -78,11 +78,18 @@ import userService from '../../../services/userService';
 // Import TaskAnalyticsDashboard component
 import TaskAnalyticsDashboard from './TaskAnalyticsDashboard';
 
-// Import jsPDF and jspdf-autotable properly
+// Import jsPDF
 import { jsPDF } from 'jspdf';
+// Import and add jspdf-autotable functionality
 import 'jspdf-autotable';
-// @ts-ignore - To avoid TypeScript errors with autoTable
-import { default as autoTable } from 'jspdf-autotable';
+
+// Simplified type for just this component to avoid conflicts
+type JsPDFWithAutoTable = jsPDF & {
+  autoTable: (options: any) => any;
+  lastAutoTable: {
+    finalY: number;
+  } | undefined;
+}
 
 // Define string constants directly for simplicity
 const TASK_STATUS = {
@@ -378,17 +385,12 @@ const AuditWorkflow: React.FC = () => {
     setActiveFiltersCount(count);
   }, [filters]);
 
-  // Fetch tasks on component mount and when filters change
+  // Fetch tasks on component mount and when filters or page changes
   useEffect(() => {
     fetchTasks();
-    
-    // Initialize localStorage with empty array if it doesn't exist
-    if (!localStorage.getItem('mockAuditTasks')) {
-      localStorage.setItem('mockAuditTasks', JSON.stringify([]));
-    }
-  }, [filters]);
+  }, [filters, currentPage]);
 
-  // Fetch tasks with proper error handling
+  // Fetch tasks from API
   const fetchTasks = async () => {
     setLoading(true);
     try {
@@ -403,36 +405,25 @@ const AuditWorkflow: React.FC = () => {
         assigned_to: filters.assignedTo
       };
       
-      const response = await auditWorkflowService.getAllTasks(apiFilters);
+      const response = await auditWorkflowService.getAllTasks(apiFilters, currentPage, 10);
       console.log('Received tasks:', response.data);
-      
-      // When we get the tasks from the API, also store them in localStorage
-      // for our mock implementation
-      if (response.data.length > 0) {
-        localStorage.setItem('mockAuditTasks', JSON.stringify(response.data));
-      }
       
       // Transform API tasks to component format
       const transformedTasks = response.data.map(convertApiTaskToComponentTask);
       setTasks(transformedTasks);
+      setTotalPages(response.pagination.total_pages);
       
-      // Store in localStorage for fallback
-      localStorage.setItem('cachedTasks', JSON.stringify(transformedTasks));
+      // Organize tasks by status for drag and drop view
+      const tasksByStatusMap = {
+        [TASK_STATUS.NOT_STARTED]: transformedTasks.filter(t => t.status === TASK_STATUS.NOT_STARTED),
+        [TASK_STATUS.IN_PROGRESS]: transformedTasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS),
+        [TASK_STATUS.COMPLETED]: transformedTasks.filter(t => t.status === TASK_STATUS.COMPLETED)
+      };
+      
+      setTasksByStatus(tasksByStatusMap);
     } catch (error) {
       console.error('Error fetching tasks:', error);
-      showNotification('Failed to fetch tasks. Using cached data if available.', 'error');
-      
-      // Try to use cached tasks from localStorage
-      const cachedTasks = localStorage.getItem('cachedTasks');
-      if (cachedTasks) {
-        try {
-          const parsedTasks = JSON.parse(cachedTasks);
-          setTasks(parsedTasks);
-          console.log('Using cached tasks from localStorage');
-        } catch (e) {
-          console.error('Error parsing cached tasks:', e);
-        }
-      }
+      showNotification('Failed to fetch tasks from database. Please try again later.', 'error');
     } finally {
       setLoading(false);
     }
@@ -496,51 +487,21 @@ const AuditWorkflow: React.FC = () => {
           const result = await auditWorkflowService.createTask(apiTask);
           console.log('Task creation result:', result);
           
-          // Update local storage with the new task for our mock implementation
-          const storedTasks = localStorage.getItem('mockAuditTasks') || '[]';
-          try {
-            const tasks = JSON.parse(storedTasks);
-            
-            // Create two versions of the task - one for localStorage mock API and one for component
-            // 1. API version (for mock data storage)
-            const mockApiTask = {
-              id: result.id,
-              title: apiTask.title || 'Untitled Task',
-              description: apiTask.description || '',
-              status: apiTask.status || TASK_STATUS.NOT_STARTED,
-              priority: apiTask.priority || TASK_PRIORITY.MEDIUM,
-              created_by: 1, // Mock user ID
-              created_by_name: 'Current User',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              approval_status: APPROVAL_STATUS.NOT_SUBMITTED,
-              due_date: apiTask.due_date || '',
-              assigned_to_name: currentTask.assignedTo || ''
-            };
-            
-            // 2. Component version that matches AuditTask interface
-            const newTask: AuditTask = {
-              id: result.id.toString(),
-              title: currentTask.title,
-              description: currentTask.description,
-              assignedTo: currentTask.assignedTo,
-              status: currentTask.status,
-              priority: currentTask.priority,
-              dueDate: currentTask.dueDate,
-              approvalStatus: APPROVAL_STATUS.NOT_SUBMITTED,
-              comments: []
-            };
-            
-            // Add the API version to localStorage
-            tasks.push(mockApiTask);
-            localStorage.setItem('mockAuditTasks', JSON.stringify(tasks));
-            console.log('Updated localStorage with new task');
-            
-            // Add the component version to the UI immediately
-            setTasks(prev => [...prev, newTask]);
-          } catch (e) {
-            console.error('Error updating localStorage:', e);
-          }
+          // Create new task with the returned ID for immediate UI feedback
+          const newTask: AuditTask = {
+            id: result.id.toString(),
+            title: currentTask.title,
+            description: currentTask.description,
+            assignedTo: currentTask.assignedTo,
+            status: currentTask.status,
+            priority: currentTask.priority,
+            dueDate: currentTask.dueDate,
+            approvalStatus: APPROVAL_STATUS.NOT_SUBMITTED,
+            comments: []
+          };
+          
+          // Add to UI immediately for better user experience
+          setTasks(prev => [...prev, newTask]);
           
           showNotification('Task created successfully', 'success');
         } catch (createError: any) {
@@ -1231,7 +1192,8 @@ const AuditWorkflow: React.FC = () => {
   // Function to export audit report as PDF
   const exportAuditReport = () => {
     try {
-      const doc = new jsPDF();
+      // Cast the document to our local type that includes autoTable
+      const doc = new jsPDF() as JsPDFWithAutoTable;
       
       // Add title
       doc.setFontSize(20);
@@ -1261,7 +1223,8 @@ const AuditWorkflow: React.FC = () => {
         ['Overdue', String(taskStats.overdue)]
       ];
       
-      autoTable(doc, {
+      // We can now use doc.autoTable directly with our cast
+      doc.autoTable({
         startY: 50,
         head: [['Status', 'Count']],
         body: summaryData,
@@ -1274,7 +1237,9 @@ const AuditWorkflow: React.FC = () => {
       // Phase Progress
       doc.setFontSize(16);
       doc.setTextColor(44, 62, 80);
-      doc.text('Phase Progress', 20, doc.lastAutoTable.finalY + 20);
+      // Use a safe way to access the last table's Y position
+      const firstTableY = (doc.lastAutoTable?.finalY) || 120;
+      doc.text('Phase Progress', 20, firstTableY + 20);
       
       // Count tasks by phase
       const phaseData = auditPhases.map(phase => {
@@ -1284,8 +1249,8 @@ const AuditWorkflow: React.FC = () => {
         return [phase, `${count} tasks (${percentage}%)`];
       });
       
-      autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 25,
+      doc.autoTable({
+        startY: firstTableY + 25,
         head: [['Phase', 'Progress']],
         body: phaseData,
         theme: 'grid',
@@ -1309,7 +1274,7 @@ const AuditWorkflow: React.FC = () => {
         renderApprovalStatusText(task.approvalStatus)
       ]);
       
-      autoTable(doc, {
+      doc.autoTable({
         startY: 25,
         head: [['Title', 'Status', 'Priority', 'Assignee', 'Due Date', 'Approval']],
         body: taskData,
