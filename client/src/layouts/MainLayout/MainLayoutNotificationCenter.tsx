@@ -67,7 +67,7 @@ const MainLayoutNotificationCenter: React.FC<NotificationCenterProps> = ({ onNav
   return (
     <BaseNotificationCenter
       notifications={convertedNotifications}
-      compact={true}
+      compact={false}
       onClearAll={markAllAsRead}
       onClearOne={(id) => markAsRead(id)}
       onNotificationClick={handleNotificationClick}

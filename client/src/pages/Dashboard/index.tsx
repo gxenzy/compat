@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // Types
 interface StatCardProps {
@@ -168,6 +168,9 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const theme = useTheme();
+  // Check if using a special theme with dark background but light mode
+  const isSpecialTheme = ['#082f49', '#1f2937', '#042f2e', '#0f172a'].includes(theme.palette.background.default);
   
   // Dashboard state
   const [dashboardData, setDashboardData] = useState<DashboardData>({
@@ -250,202 +253,245 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Energy Audit Dashboard</Typography>
-        <Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/energy-audit/new')}
-            sx={{ mr: 2 }}
-          >
-            New Audit
-          </Button>
-          <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)}>
-            <MoreVertIcon />
-          </IconButton>
-          <Menu
-            anchorEl={menuAnchor}
-            open={Boolean(menuAnchor)}
-            onClose={() => setMenuAnchor(null)}
-          >
-            <MenuItem onClick={() => {}}>
-              <DownloadIcon sx={{ mr: 1 }} /> Export Report
-            </MenuItem>
-            <MenuItem onClick={() => {}}>
-              <RefreshIcon sx={{ mr: 1 }} /> Refresh Data
-            </MenuItem>
-          </Menu>
-        </Box>
+    <Box 
+      sx={{ 
+        p: 3,
+        color: isSpecialTheme ? '#ffffff' : 'inherit'
+      }}
+    >
+      {/* Welcome Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ mb: 1, fontWeight: 600, color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+          Welcome back, {currentUser?.firstName || 'User'}
+        </Typography>
+        <Typography variant="body1" sx={{ color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}>
+          Here's an overview of your energy audit progress and key metrics
+        </Typography>
       </Box>
 
-      {/* Stats Overview */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-              <StatCard
+      {/* Key Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
             title="Total Audits"
             value={dashboardData.totalAudits}
             icon={<Assessment />}
-            color="#1976d2"
-            trend="+12% this month"
+            color={theme.palette.primary.main}
+            trend="+5% this month"
             onClick={() => navigate('/energy-audit')}
-              />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-            title="Total Findings"
-            value={dashboardData.totalFindings}
-            icon={<Warning />}
-            color="#ed6c02"
-            trend="+8 new"
-            onClick={() => navigate('/findings')}
-              />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-            title="Potential Savings"
-            value={`₱${(dashboardData.potentialSavings / 1000).toFixed(0)}K`}
-            icon={<TrendingUp />}
-            color="#2e7d32"
-            trend="+15% identified"
-              />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-              <StatCard
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Completed"
+            value={`${Math.round((dashboardData.completedAudits / dashboardData.totalAudits) * 100)}%`}
+            icon={<CheckCircle />}
+            color={theme.palette.success.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
             title="Critical Findings"
             value={dashboardData.criticalFindings}
             icon={<Warning />}
-            color="#d32f2f"
-            trend="5 unresolved"
+            color={theme.palette.error.main}
+            onClick={() => navigate('/energy-audit?filter=critical')}
           />
-          </Grid>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Potential Savings"
+            value={`$${(dashboardData.potentialSavings / 1000).toFixed(1)}k`}
+            icon={<TrendingUp />}
+            color={theme.palette.info.main}
+            trend="+12% projected"
+          />
+        </Grid>
+      </Grid>
 
-      {/* Main Content */}
-      <Grid container spacing={3}>
-        {/* Left Column */}
-          <Grid item xs={12} md={8}>
-          <Card sx={{ mb: 3 }}>
+      {/* Tabs Navigation */}
+      <Box sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{
+            '& .MuiTab-root': {
+              color: isSpecialTheme ? 'rgba(255, 255, 255, 0.6)' : undefined,
+              '&.Mui-selected': {
+                color: isSpecialTheme ? '#ffffff' : undefined
+              }
+            }
+          }}
+        >
+          <Tab label="Overview" />
+          <Tab label="Energy Trends" />
+          <Tab label="Findings" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Content */}
+      <Box sx={{ minHeight: 400 }}>
+        {/* Overview Tab */}
+        {activeTab === 0 && (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={8}>
+              <Card>
                 <CardContent>
-              <Typography variant="h6" gutterBottom>Energy Consumption Trends</Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={dashboardData.energyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="consumption"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    fillOpacity={0.3}
-                    name="Actual Consumption"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="baseline"
-                    stroke="#82ca9d"
-                    fill="#82ca9d"
-                    fillOpacity={0.3}
-                    name="Baseline"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Findings by Category</Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dashboardData.findingsByCategory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
-                  <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                  <ChartTooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="count" fill="#8884d8" name="Number of Findings" />
-                  <Bar yAxisId="right" dataKey="savings" fill="#82ca9d" name="Potential Savings (₱)" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+                      Monthly Energy Consumption
+                    </Typography>
+                    <IconButton size="small">
+                      <RefreshIcon />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={dashboardData.energyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <ChartTooltip />
+                        <Area 
+                          type="monotone" 
+                          dataKey="consumption" 
+                          stroke={theme.palette.primary.main} 
+                          fill={alpha(theme.palette.primary.main, 0.2)}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="baseline" 
+                          stroke={theme.palette.secondary.main} 
+                          fill={alpha(theme.palette.secondary.main, 0.1)}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Box>
                 </CardContent>
               </Card>
-          </Grid>
-
-        {/* Right Column */}
-          <Grid item xs={12} md={4}>
-          <Card sx={{ mb: 3 }}>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: '100%' }}>
                 <CardContent>
-              <Typography variant="h6" gutterBottom>Audit Status</Typography>
-              <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                    data={dashboardData.auditsByStatus}
-                    dataKey="count"
-                    nameKey="status"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                    label
-                  >
-                    {dashboardData.auditsByStatus.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#4caf50', '#ff9800', '#2196f3'][index % 3]} />
-                        ))}
-                      </Pie>
-                  <ChartTooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-          <Card>
-                <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Recent Activity</Typography>
-                <Button size="small">View All</Button>
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {dashboardData.recentActivity.map((activity) => (
-                      <Box 
-                    key={activity.id}
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          p: 1, 
-                          borderRadius: 1,
-                      bgcolor: 'background.default',
-                        }}
-                      >
-                        <Avatar 
-                          sx={{ 
-                        bgcolor: activity.type === 'audit' ? 'primary.main' : 'warning.main',
-                            width: 40,
-                            height: 40,
-                        mr: 2,
-                          }}
+                  <Typography variant="h6" sx={{ mb: 2, color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+                    Audit Status
+                  </Typography>
+                  <Box sx={{ height: 250, display: 'flex', justifyContent: 'center' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={dashboardData.auditsByStatus}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          dataKey="count"
+                          nameKey="status"
                         >
-                      {activity.type === 'audit' ? <Assessment /> : <Warning />}
-                        </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle2">{activity.title}</Typography>
-                          <Typography variant="body2" color="textSecondary">
-                        {format(new Date(activity.date), 'MMM d, yyyy')}
-                          </Typography>
+                          {dashboardData.auditsByStatus.map((entry, index) => {
+                            const COLORS = [
+                              theme.palette.success.main,
+                              theme.palette.warning.main,
+                              theme.palette.info.main
+                            ];
+                            return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                          })}
+                        </Pie>
+                        <ChartTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+                  <Box sx={{ mt: 2 }}>
+                    {dashboardData.auditsByStatus.map((status) => (
+                      <Box key={status.status} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <AuditStatusChip status={status.status} />
                         </Box>
-                    <AuditStatusChip status={activity.status} />
+                        <Typography variant="body2" sx={{ color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}>
+                          {status.count} audits
+                        </Typography>
                       </Box>
                     ))}
                   </Box>
                 </CardContent>
               </Card>
-        </Grid>
-      </Grid>
+            </Grid>
+          </Grid>
+        )}
+        
+        {/* Energy Trends Tab */}
+        {activeTab === 1 && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 3, color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+                Annual Energy Consumption Trends
+              </Typography>
+              {/* Rest of energy trends tab content */}
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Findings Tab */}
+        {activeTab === 2 && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 3, color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+                Findings by Category
+              </Typography>
+              {/* Rest of findings tab content */}
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+
+      {/* Recent Activity Section */}
+      <Box sx={{ mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ color: isSpecialTheme ? '#ffffff' : 'inherit' }}>Recent Activity</Typography>
+          <Button startIcon={<RefreshIcon />} size="small">
+            Refresh
+          </Button>
+        </Box>
+        <Card>
+          <CardContent>
+            {dashboardData.recentActivity.map((activity) => (
+              <Box 
+                key={activity.id} 
+                sx={{ 
+                  py: 1.5, 
+                  borderBottom: '1px solid', 
+                  borderColor: 'divider',
+                  '&:last-child': { 
+                    borderBottom: 'none' 
+                  } 
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ color: isSpecialTheme ? '#ffffff' : 'inherit' }}>
+                      {activity.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary' }}>
+                      {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <AuditStatusChip status={activity.status} />
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        ml: 2, 
+                        color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary'
+                      }}
+                    >
+                      {activity.date}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 };

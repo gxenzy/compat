@@ -218,7 +218,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
   if (compact) {
     return (
       <Box>
-        <Typography variant="subtitle1">Recent Activity</Typography>
+        <Typography variant="subtitle1">Notification</Typography>
         <Divider />
         {displayedNotifications.length > 0 ? (
           displayedNotifications.map(notification => (
@@ -252,8 +252,25 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
         color="inherit"
         onClick={handleOpenMenu}
         aria-label="Notifications"
+        sx={{
+          transition: 'transform 0.2s',
+          '&:hover': {
+            transform: 'scale(1.1)',
+          }
+        }}
       >
-        <Badge badgeContent={unreadCount} color="error">
+        <Badge 
+          badgeContent={unreadCount} 
+          color="error"
+          sx={{
+            '& .MuiBadge-badge': {
+              fontSize: '0.7rem',
+              height: '18px',
+              minWidth: '18px',
+              padding: '0 4px'
+            }
+          }}
+        >
           <NotificationsIcon />
         </Badge>
       </IconButton>
@@ -262,63 +279,187 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleCloseMenu}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
         PaperProps={{
+          elevation: 3,
           sx: {
-            width: 320,
-            maxHeight: 500
+            width: 350,
+            maxHeight: 500,
+            overflow: 'hidden',
+            borderRadius: '8px',
+            mt: 1
           }
         }}
       >
-        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Notifications</Typography>
-          <Box>
-            <Button size="small" onClick={markAllAsRead}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          px: 2, 
+          py: 1.5, 
+          bgcolor: 'background.paper',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              fontSize: '1.1rem'
+            }}
+          >
+            Notifications
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              size="small" 
+              onClick={markAllAsRead} 
+              sx={{ 
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
+              }}
+            >
               Mark All as Read
             </Button>
-            <Button size="small" onClick={toggleMute}>
-              {muted ? 'Unmute Notifications' : 'Mute Notifications'}
+            <Button 
+              size="small" 
+              onClick={toggleMute}
+              sx={{ 
+                fontSize: '0.75rem',
+                fontWeight: 600
+              }}
+            >
+              {muted ? 'Unmute' : 'Mute'}
             </Button>
           </Box>
         </Box>
         
-        <Divider />
-        
-        <Tabs value={currentTab} onChange={handleTabChange} centered>
-          <Tab label="All" />
-          <Tab label={`Unread (${unreadCount})`} />
+        <Tabs 
+          value={currentTab} 
+          onChange={handleTabChange} 
+          centered
+          sx={{
+            minHeight: '42px',
+            '& .MuiTabs-indicator': {
+              height: 3
+            },
+            '& .MuiTab-root': {
+              minHeight: '42px',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              textTransform: 'none'
+            }
+          }}
+        >
+          <Tab label="ALL" />
+          <Tab label={`UNREAD (${unreadCount})`} />
         </Tabs>
         
-        <Divider />
-        
-        {displayedNotifications.length > 0 ? (
-          displayedNotifications.map(notification => (
-            <MenuItem 
-              key={notification.id}
-              onClick={() => handleNotificationClick(notification)}
-              sx={{
-                borderLeft: notification.read ? 'none' : '3px solid',
-                borderLeftColor: 'primary.main',
-                py: 1
-              }}
-            >
-              <Box>
-                <Typography variant="body1">
-                  {notification.title || notification.type}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {notification.message}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(notification.timestamp).toLocaleString()}
-                </Typography>
-              </Box>
-            </MenuItem>
-          ))
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
-            No notifications
-          </Typography>
-        )}
+        <Box sx={{ 
+          maxHeight: 350, 
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(0,0,0,0.2)',
+            borderRadius: '6px',
+          }
+        }}>
+          {displayedNotifications.length > 0 ? (
+            displayedNotifications.map(notification => (
+              <MenuItem 
+                key={notification.id}
+                onClick={() => handleNotificationClick(notification)}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  opacity: notification.read ? 0.8 : 1,
+                  position: 'relative',
+                  '&::before': notification.read ? {} : {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: '4px',
+                    backgroundColor: theme => theme.palette.primary.main,
+                  },
+                  '&:hover': {
+                    backgroundColor: theme => theme.palette.action.hover
+                  }
+                }}
+              >
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        fontWeight: notification.read ? 400 : 600,
+                        fontSize: '0.95rem'
+                      }}
+                    >
+                      {notification.title || notification.type}
+                    </Typography>
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ fontSize: '0.7rem' }}
+                    >
+                      {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontSize: '0.85rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    }}
+                  >
+                    {notification.message}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              p: 4,
+              height: '150px'
+            }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  textAlign: 'center',
+                  fontWeight: 500
+                }}
+              >
+                No notifications
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Menu>
     </>
   );

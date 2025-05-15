@@ -30,6 +30,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  const isSpecialTheme = ['#082f49', '#1f2937', '#042f2e', '#0f172a'].includes(theme.palette.background.default);
   
   // Check for redirect params in URL
   useEffect(() => {
@@ -110,7 +111,9 @@ const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+        background: isSpecialTheme 
+          ? theme.palette.background.default
+          : 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
       }}
     >
       <Container maxWidth="xs">
@@ -121,20 +124,27 @@ const Login: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: isSpecialTheme ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(10px)',
             borderRadius: 2,
           }}
         >
           <Box sx={{ mb: 3, width: '70%', maxWidth: 180 }}>
             <img 
-              src={isDarkMode ? "/logo-white.png" : "/logo-black.png"} 
+              src={isDarkMode || isSpecialTheme ? "/logo-white.png" : "/logo-black.png"} 
               alt="Company Logo" 
               style={{ width: '100%', height: 'auto' }}
             />
           </Box>
 
-          <Typography component="h1" variant="h5" gutterBottom>
+          <Typography 
+            component="h1" 
+            variant="h5" 
+            gutterBottom
+            sx={{ 
+              color: isSpecialTheme ? '#ffffff' : 'inherit'
+            }}
+          >
             Sign In
           </Typography>
 
@@ -165,6 +175,25 @@ const Login: React.FC = () => {
               InputProps={{
                 spellCheck: false,
               }}
+              sx={{
+                '& .MuiInputLabel-root': {
+                  color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : undefined
+                },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: isSpecialTheme ? 'rgba(255, 255, 255, 0.3)' : undefined
+                  },
+                  '&:hover fieldset': {
+                    borderColor: isSpecialTheme ? 'rgba(255, 255, 255, 0.5)' : undefined
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: isSpecialTheme ? theme.palette.primary.light : undefined
+                  },
+                  '& input': {
+                    color: isSpecialTheme ? '#ffffff' : undefined
+                  }
+                }
+              }}
             />
             <TextField
               margin="normal"
@@ -186,11 +215,31 @@ const Login: React.FC = () => {
                       aria-label="toggle password visibility"
                       onClick={togglePasswordVisibility}
                       edge="end"
+                      sx={{ color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : undefined }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
                 ),
+              }}
+              sx={{
+                '& .MuiInputLabel-root': {
+                  color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : undefined
+                },
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: isSpecialTheme ? 'rgba(255, 255, 255, 0.3)' : undefined
+                  },
+                  '&:hover fieldset': {
+                    borderColor: isSpecialTheme ? 'rgba(255, 255, 255, 0.5)' : undefined
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: isSpecialTheme ? theme.palette.primary.light : undefined
+                  },
+                  '& input': {
+                    color: isSpecialTheme ? '#ffffff' : undefined
+                  }
+                }
               }}
             />
             
@@ -199,7 +248,13 @@ const Login: React.FC = () => {
                 component="button"
                 variant="body2"
                 onClick={handleForgotPassword}
-                sx={{ textDecoration: 'none' }}
+                sx={{ 
+                  textDecoration: 'none',
+                  color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : undefined,
+                  '&:hover': {
+                    color: isSpecialTheme ? '#ffffff' : undefined
+                  }
+                }}
               >
                 Forgot password?
               </Link>

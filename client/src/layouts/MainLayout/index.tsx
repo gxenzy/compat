@@ -187,10 +187,16 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
           WebkitBackdropFilter: 'blur(8px)',
           backgroundImage: mode === 'energy' 
             ? 'linear-gradient(135deg, #059669 0%, #0284c7 100%)'
-            : 'none',
+            : mode === 'blue'
+              ? 'linear-gradient(to right, #0284c7, #0369a1)'
+              : mode === 'gray'
+                ? 'linear-gradient(to right, #4b5563, #374151)'
+                : 'none',
           boxShadow: isDarkMode 
             ? '0 4px 16px rgba(0,0,0,0.2)'
-            : '0 2px 16px rgba(0,0,0,0.05)',
+            : mode === 'blue' || mode === 'gray'
+              ? '0 2px 16px rgba(0,0,0,0.15)'
+              : '0 2px 16px rgba(0,0,0,0.05)',
           borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
           transition: theme => theme.transitions.create(['width', 'margin-left', 'box-shadow'], {
             easing: theme.transitions.easing.easeInOut,
@@ -267,7 +273,9 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
                         ? 'rgba(255, 255, 255, 0.2)' 
                         : alpha(theme.palette.primary.main, 0.1)
                     },
-                    textTransform: 'none'
+                    textTransform: 'none',
+                    fontWeight: ['blue', 'gray'].includes(mode) ? 600 : 500,
+                    textShadow: ['blue', 'gray'].includes(mode) ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
                   }}
                 >
                   Dashboard
@@ -291,7 +299,9 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
                         ? 'rgba(255, 255, 255, 0.2)' 
                         : alpha(theme.palette.primary.main, 0.1)
                     },
-                    textTransform: 'none'
+                    textTransform: 'none',
+                    fontWeight: ['blue', 'gray'].includes(mode) ? 600 : 500,
+                    textShadow: ['blue', 'gray'].includes(mode) ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
                   }}
                 >
                   Energy Audit

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ColorBlindnessType } from '../utils/accessibility/colorBlindnessSimulation';
+// Import the CSS file with color blindness filters
+import '../utils/accessibility/colorBlindnessFilters.css';
 
 /**
  * Interface defining the accessibility settings that can be configured
@@ -47,6 +49,81 @@ const STORAGE_KEY = 'energy-audit-accessibility-settings';
 const AccessibilitySettingsContext = createContext<AccessibilityContextType | undefined>(undefined);
 
 /**
+ * SVG definitions for color blindness filters
+ */
+const colorBlindnessFiltersSvg = `
+<svg style="position: absolute; height: 0; width: 0;">
+  <defs>
+    <!-- Protanopia (Red-Blind) Filter -->
+    <filter id="protanopia-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.567, 0.433, 0.000, 0, 0
+                0.558, 0.442, 0.000, 0, 0
+                0.000, 0.242, 0.758, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+    
+    <!-- Deuteranopia (Green-Blind) Filter -->
+    <filter id="deuteranopia-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.625, 0.375, 0.000, 0, 0
+                0.700, 0.300, 0.000, 0, 0
+                0.000, 0.300, 0.700, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+    
+    <!-- Tritanopia (Blue-Blind) Filter -->
+    <filter id="tritanopia-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.950, 0.050, 0.000, 0, 0
+                0.000, 0.433, 0.567, 0, 0
+                0.000, 0.475, 0.525, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+    
+    <!-- Protanomaly (Red-Weak) Filter -->
+    <filter id="protanomaly-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.817, 0.183, 0.000, 0, 0
+                0.333, 0.667, 0.000, 0, 0
+                0.000, 0.125, 0.875, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+    
+    <!-- Deuteranomaly (Green-Weak) Filter -->
+    <filter id="deuteranomaly-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.800, 0.200, 0.000, 0, 0
+                0.258, 0.742, 0.000, 0, 0
+                0.000, 0.142, 0.858, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+    
+    <!-- Tritanomaly (Blue-Weak) Filter -->
+    <filter id="tritanomaly-filter">
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="0.967, 0.033, 0.000, 0, 0
+                0.000, 0.733, 0.267, 0, 0
+                0.000, 0.183, 0.817, 0, 0
+                0, 0, 0, 1, 0"/>
+    </filter>
+  </defs>
+</svg>
+`;
+
+/**
  * Provider component that manages accessibility settings state and persistence
  */
 export const AccessibilitySettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -60,6 +137,26 @@ export const AccessibilitySettingsProvider: React.FC<{ children: React.ReactNode
       return defaultSettings;
     }
   });
+
+  // Inject SVG filters for color blindness simulation
+  useEffect(() => {
+    // Check if filters are already injected
+    if (!document.getElementById('color-blindness-filters')) {
+      // Create container for SVG filters
+      const filterContainer = document.createElement('div');
+      filterContainer.id = 'color-blindness-filters';
+      filterContainer.innerHTML = colorBlindnessFiltersSvg;
+      document.body.appendChild(filterContainer);
+    }
+
+    // Clean up on unmount
+    return () => {
+      const filterContainer = document.getElementById('color-blindness-filters');
+      if (filterContainer) {
+        document.body.removeChild(filterContainer);
+      }
+    };
+  }, []);
 
   // Persist settings to localStorage when they change
   useEffect(() => {

@@ -26,7 +26,8 @@ import {
   IconButton,
   Tooltip,
   SelectChangeEvent,
-  CircularProgress
+  CircularProgress,
+  useTheme
 } from '@mui/material';
 import {
   ElectricalServices as ElectricalServicesIcon,
@@ -41,6 +42,8 @@ import {
   Save as SaveIcon,
   InfoOutlined as InfoOutlinedIcon
 } from '@mui/icons-material';
+import { useThemeMode } from '../../../../contexts/ThemeContext';
+import { alpha } from '@mui/material/styles';
 
 // Import actual components for real implementation
 // In a real scenario these would be imported from their actual paths
@@ -185,6 +188,9 @@ const ReferenceBasedChecklist: React.FC<{items: InspectionItem[]}> = ({items}) =
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const theme = useTheme();
+  const { mode } = useThemeMode();
+  const isSpecialTheme = ['blue', 'gray', 'energy', 'dark', 'darkBlue'].includes(mode);
   
   const handleAccordionChange = (itemId: string) => {
     setExpandedItem(expandedItem === itemId ? null : itemId);
@@ -243,8 +249,13 @@ const ReferenceBasedChecklist: React.FC<{items: InspectionItem[]}> = ({items}) =
           onChange={() => handleAccordionChange(item.id)}
           sx={{ 
             mb: 1,
-            border: checkedItems.includes(item.id) ? '1px solid #4caf50' : '1px solid rgba(0, 0, 0, 0.12)',
-            bgcolor: checkedItems.includes(item.id) ? 'rgba(76, 175, 80, 0.05)' : 'inherit'
+            border: checkedItems.includes(item.id) 
+              ? isSpecialTheme ? '1px solid #4caf50' : '1px solid #4caf50' 
+              : isSpecialTheme ? `1px solid ${alpha('#ffffff', 0.12)}` : '1px solid rgba(0, 0, 0, 0.12)',
+            bgcolor: checkedItems.includes(item.id) 
+              ? isSpecialTheme ? alpha('#4caf50', 0.1) : 'rgba(76, 175, 80, 0.05)' 
+              : 'inherit',
+            color: isSpecialTheme ? theme.palette.text.primary : 'inherit',
           }}
         >
           <AccordionSummary
@@ -326,6 +337,10 @@ const InspectionChecklistComponent: React.FC = () => {
     purpose: 'educational'
   });
   
+  const theme = useTheme();
+  const { mode } = useThemeMode();
+  const isSpecialTheme = ['blue', 'gray', 'energy', 'dark', 'darkBlue'].includes(mode);
+  
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -385,7 +400,12 @@ const InspectionChecklistComponent: React.FC = () => {
               Philippine Electrical Code (PEC) 2017 and ASHRAE Standards, with proper references and explanations.
             </Typography>
             
-            <Paper sx={{ p: 3, mb: 4, bgcolor: '#f9f9f9' }}>
+            <Paper sx={{ 
+              p: 3, 
+              mb: 4, 
+              bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : '#f9f9f9',
+              color: isSpecialTheme ? theme.palette.text.primary : 'inherit',
+            }}>
               <Typography variant="h6" gutterBottom>New Inspection</Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
@@ -437,7 +457,10 @@ const InspectionChecklistComponent: React.FC = () => {
             
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
-                <Card>
+                <Card sx={{
+                  bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : undefined,
+                  color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                }}>
                   <CardContent>
                     <ElectricalServicesIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6" gutterBottom>
@@ -461,7 +484,10 @@ const InspectionChecklistComponent: React.FC = () => {
               </Grid>
               
               <Grid item xs={12} sm={6}>
-                <Card>
+                <Card sx={{
+                  bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : undefined,
+                  color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                }}>
                   <CardContent>
                     <AcUnitIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
                     <Typography variant="h6" gutterBottom>
@@ -485,7 +511,12 @@ const InspectionChecklistComponent: React.FC = () => {
               </Grid>
             </Grid>
             
-            <Paper sx={{ p: 3, mt: 4, bgcolor: '#f5f5f5' }}>
+            <Paper sx={{ 
+              p: 3, 
+              mt: 4, 
+              bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : '#f5f5f5',
+              color: isSpecialTheme ? theme.palette.text.primary : 'inherit',
+            }}>
               <Typography variant="h6" gutterBottom>
                 Educational Objectives
               </Typography>
@@ -517,7 +548,13 @@ const InspectionChecklistComponent: React.FC = () => {
             
             <Grid container spacing={3} sx={{ mt: 3 }}>
               <Grid item xs={12} md={6}>
-                <Card variant="outlined">
+                <Card 
+                  variant="outlined"
+                  sx={{
+                    bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : undefined,
+                    color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                  }}
+                >
                   <CardContent>
                     <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                       <DescriptionIcon color="primary" />
@@ -539,7 +576,13 @@ const InspectionChecklistComponent: React.FC = () => {
               </Grid>
               
               <Grid item xs={12} md={6}>
-                <Card variant="outlined">
+                <Card 
+                  variant="outlined"
+                  sx={{
+                    bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : undefined,
+                    color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                  }}
+                >
                   <CardContent>
                     <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                       <DescriptionIcon color="primary" />
@@ -549,12 +592,16 @@ const InspectionChecklistComponent: React.FC = () => {
                       ASHRAE standards relevant to energy audits include:
                     </Typography>
                     <Typography variant="body2" paragraph>
-                      • <strong>Standard 55:</strong> Thermal Environmental Conditions for Human Occupancy<br />
-                      • <strong>Standard 62.1:</strong> Ventilation for Acceptable Indoor Air Quality<br />
-                      • <strong>Standard 90.1:</strong> Energy Standard for Buildings Except Low-Rise Residential Buildings
+                      - ASHRAE 55: Thermal Environmental Conditions for Human Occupancy
+                    </Typography>
+                    <Typography variant="body2" paragraph>
+                      - ASHRAE 62.1: Ventilation for Acceptable Indoor Air Quality
+                    </Typography>
+                    <Typography variant="body2" paragraph>
+                      - ASHRAE 90.1: Energy Standard for Buildings Except Low-Rise Residential Buildings
                     </Typography>
                     <Button variant="outlined" startIcon={<PictureAsPdfIcon />}>
-                      View ASHRAE Guidelines
+                      View ASHRAE Quick Reference
                     </Button>
                   </CardContent>
                 </Card>
@@ -578,7 +625,17 @@ const InspectionChecklistComponent: React.FC = () => {
                 </Typography>
               </Box>
               
-              <Alert severity="info" sx={{ mb: 3 }}>
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  mb: 3,
+                  bgcolor: isSpecialTheme ? alpha('#03a9f4', 0.1) : undefined,
+                  color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                  '& .MuiAlert-icon': {
+                    color: isSpecialTheme ? '#03a9f4' : undefined
+                  }
+                }}
+              >
                 This is an educational checklist based on actual PEC 2017 requirements. Complete each item based on your manual inspection.
               </Alert>
               
@@ -602,7 +659,17 @@ const InspectionChecklistComponent: React.FC = () => {
                 </Typography>
               </Box>
               
-              <Alert severity="info" sx={{ mb: 3 }}>
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  mb: 3,
+                  bgcolor: isSpecialTheme ? alpha('#03a9f4', 0.1) : undefined,
+                  color: isSpecialTheme ? theme.palette.text.primary : undefined,
+                  '& .MuiAlert-icon': {
+                    color: isSpecialTheme ? '#03a9f4' : undefined
+                  }
+                }}
+              >
                 This is an educational checklist based on actual ASHRAE standards. Complete each item based on your manual inspection.
               </Alert>
               

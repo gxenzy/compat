@@ -61,6 +61,10 @@ const AccessibilitySettingsModal: React.FC<AccessibilitySettingsModalProps> = ({
       slotProps={{
         backdrop: {
           timeout: 500,
+          sx: {
+            backdropFilter: 'blur(3px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }
         },
       }}
       aria-labelledby="accessibility-settings-modal"
@@ -73,11 +77,12 @@ const AccessibilitySettingsModal: React.FC<AccessibilitySettingsModalProps> = ({
           transform: 'translate(-50%, -50%)',
           maxWidth: '90vw',
           maxHeight: '90vh',
-          overflow: 'auto',
+          overflow: 'hidden',
           outline: 'none',
-          p: 1,
+          borderRadius: '28px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
           '&:focus': {
-            outline: `2px solid ${theme.palette.primary.main}`,
+            outline: 'none',
           },
         }}>
           <AccessibilitySettingsPanel onClose={onClose} variant="modal" />

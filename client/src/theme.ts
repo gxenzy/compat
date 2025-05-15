@@ -427,7 +427,7 @@ export const energyTheme = responsiveFontSizes(createTheme({
     background: {
       default: '#042f2e', // New darker teal/green background
       paper: '#064e3b', // Darker green paper
-      sidebar: '#0a5c45',
+      sidebar: '#10b981', // Match with the header color
     },
     text: {
       primary: '#ffffff', // Ensure white text for better contrast
@@ -442,7 +442,11 @@ export const energyTheme = responsiveFontSizes(createTheme({
           backgroundImage: gradients.energy,
           color: '#ffffff',
           '& .MuiButton-root': {
-            textTransform: 'none'
+            textTransform: 'none',
+            fontWeight: 500,
+            borderRadius: 8,
+            padding: '6px 16px',
+            minWidth: 64,
           }
         } as CSSObject,
       },
@@ -450,8 +454,8 @@ export const energyTheme = responsiveFontSizes(createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#0a5c45',
-          backgroundImage: 'linear-gradient(rgba(5, 150, 105, 0.9), rgba(2, 132, 199, 0.4))',
+          backgroundColor: '#10b981', // Match with header gradient start color
+          backgroundImage: 'linear-gradient(rgba(16, 185, 129, 0.95), rgba(6, 182, 212, 0.75))',
           color: '#ffffff',
         } as CSSObject,
       },
@@ -463,8 +467,9 @@ export const energyTheme = responsiveFontSizes(createTheme({
             color: '#ffffff !important', 
             backgroundColor: 'rgba(255, 255, 255, 0.15) !important',
           },
-          // Fix for capitalized text in Energy theme
           textTransform: 'none',
+          fontWeight: 500,
+          borderRadius: 8,
         } as CSSObject,
       },
     },
@@ -588,7 +593,7 @@ export const blueTheme = responsiveFontSizes(createTheme({
     background: {
       default: '#082f49', // Darker blue background
       paper: '#0c4a6e', // Darker blue paper
-      sidebar: '#0284c7', // Matching sidebar with primary color
+      sidebar: '#0284c7', // Matching sidebar with header color
     },
     text: {
       primary: '#ffffff',
@@ -603,7 +608,18 @@ export const blueTheme = responsiveFontSizes(createTheme({
           backgroundColor: '#0284c7',
           color: '#ffffff',
           '& .MuiButton-root': {
-            textTransform: 'none'
+            textTransform: 'none',
+            color: '#ffffff',
+            fontWeight: 500,
+            borderRadius: 8,
+            padding: '6px 16px',
+            minWidth: 64,
+          },
+          '& a': {
+            color: '#ffffff'
+          },
+          '& .MuiButtonBase-root': {
+            color: '#ffffff'
           }
         } as CSSObject,
       },
@@ -622,6 +638,7 @@ export const blueTheme = responsiveFontSizes(createTheme({
           '& .MuiListItemButton-root': {
             '&.Mui-selected': {
               backgroundColor: 'rgba(255, 255, 255, 0.16)',
+              fontWeight: 500,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.24)',
               },
@@ -633,16 +650,57 @@ export const blueTheme = responsiveFontSizes(createTheme({
         } as CSSObject,
       },
     },
+    // Keep only one MuiButton component
     MuiButton: {
       styleOverrides: {
         root: {
-          '&.Mui-selected, &[aria-current="page"]': {
-            color: '#ffffff !important',
-            backgroundColor: 'rgba(255, 255, 255, 0.15) !important',
-          },
           textTransform: 'none',
+          fontWeight: 500,
+          borderRadius: 8,
+          padding: '6px 16px',
         } as CSSObject,
       },
+    },
+    // Fix content area text colors
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+        } as CSSObject,
+        body1: {
+          color: '#ffffff',
+        } as CSSObject,
+        body2: {
+          color: 'rgba(255, 255, 255, 0.85)',
+        } as CSSObject,
+      }
+    },
+    // Fix TextField text colors
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#38bdf8',
+          },
+        } as CSSObject,
+      }
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          '&.Mui-focused': {
+            color: '#38bdf8',
+          },
+        } as CSSObject,
+      }
     },
     // Fix category chips in blue theme
     MuiChip: {
@@ -713,6 +771,66 @@ export const blueTheme = responsiveFontSizes(createTheme({
         } as CSSObject,
       }
     },
+    // Add styling for navigation items
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.08)'
+          }
+        } as CSSObject
+      }
+    },
+    // Fix for tabs and navigation items
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          '& .MuiTab-root': {
+            color: '#ffffff',
+            opacity: 0.9,
+            '&.Mui-selected': {
+              color: '#ffffff',
+              opacity: 1
+            },
+            '&:hover': {
+              opacity: 1
+            }
+          },
+          '& .MuiTabScrollButton-root': {
+            color: '#ffffff'
+          }
+        } as CSSObject
+      }
+    },
+    // Enhanced tab styling for secondary navigation in special themes
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          // These styles will be applied to all tabs except ones we directly override
+          '&.MuiButtonBase-root': {
+            transition: 'all 0.2s ease',
+          },
+          // Default styling for regular tabs within panels
+          '&.MuiTab-root:not(.MuiTab-root[role="tab"])': {
+            color: '#1e293b',
+            opacity: 0.9,
+            '&.Mui-selected': {
+              color: '#0284c7',
+              fontWeight: 600,
+            },
+            '& .MuiSvgIcon-root': {
+              color: '#0284c7',
+            },
+            '&:hover': {
+              color: '#0284c7',
+              opacity: 1,
+              backgroundColor: 'rgba(2, 132, 199, 0.04)',
+            }
+          }
+        } as CSSObject,
+      }
+    },
   },
 }));
 
@@ -736,7 +854,7 @@ export const grayTheme = responsiveFontSizes(createTheme({
     background: {
       default: '#1f2937', // Dark gray background
       paper: '#374151', // Gray paper
-      sidebar: '#4b5563', // Matching sidebar with secondary
+      sidebar: '#4b5563', // Matching sidebar with header color
     },
     text: {
       primary: '#ffffff',
@@ -751,7 +869,18 @@ export const grayTheme = responsiveFontSizes(createTheme({
           backgroundColor: '#4b5563',
           color: '#ffffff',
           '& .MuiButton-root': {
-            textTransform: 'none'
+            textTransform: 'none',
+            color: '#ffffff',
+            fontWeight: 500,
+            borderRadius: 8,
+            padding: '6px 16px',
+            minWidth: 64,
+          },
+          '& a': {
+            color: '#ffffff'
+          },
+          '& .MuiButtonBase-root': {
+            color: '#ffffff'
           }
         } as CSSObject,
       },
@@ -770,6 +899,7 @@ export const grayTheme = responsiveFontSizes(createTheme({
           '& .MuiListItemButton-root': {
             '&.Mui-selected': {
               backgroundColor: 'rgba(255, 255, 255, 0.16)',
+              fontWeight: 500,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.24)',
               },
@@ -781,16 +911,57 @@ export const grayTheme = responsiveFontSizes(createTheme({
         } as CSSObject,
       },
     },
+    // Keep only one MuiButton component
     MuiButton: {
       styleOverrides: {
         root: {
-          '&.Mui-selected, &[aria-current="page"]': {
-            color: '#ffffff !important',
-            backgroundColor: 'rgba(255, 255, 255, 0.15) !important',
-          },
           textTransform: 'none',
+          fontWeight: 500,
+          borderRadius: 8,
+          padding: '6px 16px',
         } as CSSObject,
       },
+    },
+    // Fix content area text colors
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+        } as CSSObject,
+        body1: {
+          color: '#ffffff',
+        } as CSSObject,
+        body2: {
+          color: 'rgba(255, 255, 255, 0.85)',
+        } as CSSObject,
+      }
+    },
+    // Fix TextField text colors
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#6b7280',
+          },
+        } as CSSObject,
+      }
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          '&.Mui-focused': {
+            color: '#6b7280',
+          },
+        } as CSSObject,
+      }
     },
     // Fix category chips in gray theme
     MuiChip: {
@@ -858,6 +1029,66 @@ export const grayTheme = responsiveFontSizes(createTheme({
           borderRadius: '8px',
           backgroundColor: 'rgba(0, 0, 0, 0.85)',
           color: '#ffffff',
+        } as CSSObject,
+      }
+    },
+    // Add styling for navigation items
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.08)'
+          }
+        } as CSSObject
+      }
+    },
+    // Fix for tabs and navigation items
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          '& .MuiTab-root': {
+            color: '#ffffff',
+            opacity: 0.9,
+            '&.Mui-selected': {
+              color: '#ffffff',
+              opacity: 1
+            },
+            '&:hover': {
+              opacity: 1
+            }
+          },
+          '& .MuiTabScrollButton-root': {
+            color: '#ffffff'
+          }
+        } as CSSObject
+      }
+    },
+    // Enhanced tab styling for secondary navigation in special themes
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          // These styles will be applied to all tabs except ones we directly override
+          '&.MuiButtonBase-root': {
+            transition: 'all 0.2s ease',
+          },
+          // Default styling for regular tabs within panels
+          '&.MuiTab-root:not(.MuiTab-root[role="tab"])': {
+            color: '#1e293b',
+            opacity: 0.9,
+            '&.Mui-selected': {
+              color: '#374151',
+              fontWeight: 600,
+            },
+            '& .MuiSvgIcon-root': {
+              color: '#374151',
+            },
+            '&:hover': {
+              color: '#374151',
+              opacity: 1,
+              backgroundColor: 'rgba(55, 65, 81, 0.04)',
+            }
+          }
         } as CSSObject,
       }
     },

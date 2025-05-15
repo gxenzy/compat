@@ -1,0 +1,38 @@
+/**
+ * Color Blindness Simulation Filters
+ * These CSS filters apply visual transformations to simulate different types of color blindness.
+ * Based on research from https://www.color-blindness.com/ and https://www.toptal.com/designers/colorfilter/
+ */
+
+/* Apply to the html element when simulation is active */
+html.color-blindness-protanopia {
+  filter: url('#protanopia-filter');
+}
+
+html.color-blindness-deuteranopia {
+  filter: url('#deuteranopia-filter');
+}
+
+html.color-blindness-tritanopia {
+  filter: url('#tritanopia-filter');
+}
+
+html.color-blindness-achromatopsia {
+  filter: grayscale(100%);
+}
+
+html.color-blindness-protanomaly {
+  filter: url('#protanomaly-filter');
+}
+
+html.color-blindness-deuteranomaly {
+  filter: url('#deuteranomaly-filter');
+}
+
+html.color-blindness-tritanomaly {
+  filter: url('#tritanomaly-filter');
+}
+
+/* SVG filters to be added to the document */
+/* These filters will be added dynamically to the document when needed */
+/* via the AccessibilitySettingsProvider component */ 

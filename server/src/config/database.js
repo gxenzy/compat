@@ -28,7 +28,8 @@ const config = {
   database: process.env.DB_NAME || 'energyauditdb',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  multipleStatements: true // Enable multiple statements
 };
 
 // Create the connection pool
@@ -86,7 +87,16 @@ async function runMigration(filename) {
   try {
     const filePath = path.join(__dirname, '../database/migrations', filename);
     const sql = fs.readFileSync(filePath, 'utf-8');
-    await pool.query(sql);
+    
+    // Create a connection with multiple statements enabled for this specific operation
+    const connection = await mysql.createConnection({
+      ...config,
+      multipleStatements: true
+    });
+    
+    await connection.query(sql);
+    await connection.end();
+    
     console.log(`Migration ${filename} completed successfully`);
   } catch (error) {
     console.error(`Error running migration ${filename}:`, error);

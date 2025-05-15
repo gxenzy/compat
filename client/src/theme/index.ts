@@ -707,6 +707,27 @@ export const blueTheme = responsiveFontSizes(createTheme({
       default: '#f5f9ff',
       paper: '#ffffff',
     },
+    text: {
+      primary: '#292929',
+      secondary: '#555555'
+    }
+  },
+  typography: {
+    allVariants: {
+      color: undefined,
+    },
+    body1: {
+      color: '#292929',
+    },
+    body2: {
+      color: '#292929',
+    },
+    subtitle1: {
+      color: '#555555',
+    },
+    subtitle2: {
+      color: '#555555',
+    },
   },
   components: {
     ...createBaseComponents('light'),
@@ -715,6 +736,29 @@ export const blueTheme = responsiveFontSizes(createTheme({
         root: {
           background: 'linear-gradient(145deg, #0072f5 0%, #7828c8 100%)',
           boxShadow: '0 4px 20px rgba(0, 114, 245, 0.2)',
+          "& .MuiTypography-root": {
+            color: "#ffffff"
+          },
+          "& .MuiIconButton-root": {
+            color: "#ffffff"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          color: '#292929',
+          "&.Mui-selected": {
+            color: '#0072f5',
+          }
+        } as CSSObject,
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        indicator: {
+          backgroundColor: '#0072f5',
         } as CSSObject,
       },
     },
@@ -727,6 +771,49 @@ export const blueTheme = responsiveFontSizes(createTheme({
             transform: 'translateY(-2px)',
           },
           transition: 'transform 0.2s ease-in-out',
+          "& .MuiTypography-root": {
+            color: "inherit"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          "& .MuiTypography-root": {
+            color: "#292929"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          color: "#292929"
+        },
+        secondary: {
+          color: "#555555"
+        }
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          "&:hover": {
+            backgroundColor: "rgba(0, 114, 245, 0.05)"
+          },
+          "&.Mui-selected": {
+            backgroundColor: "rgba(0, 114, 245, 0.1)",
+            "&:hover": {
+              backgroundColor: "rgba(0, 114, 245, 0.15)"
+            },
+            "& .MuiListItemIcon-root": {
+              color: "#0072f5"
+            },
+            "& .MuiListItemText-primary": {
+              color: "#0072f5"
+            }
+          }
         } as CSSObject,
       },
     },
@@ -769,6 +856,27 @@ export const grayTheme = responsiveFontSizes(createTheme({
       default: '#f9fafb',
       paper: '#ffffff',
     },
+    text: {
+      primary: '#1f2937',
+      secondary: '#4b5563'
+    }
+  },
+  typography: {
+    allVariants: {
+      color: undefined,
+    },
+    body1: {
+      color: '#1f2937',
+    },
+    body2: {
+      color: '#1f2937',
+    },
+    subtitle1: {
+      color: '#4b5563',
+    },
+    subtitle2: {
+      color: '#4b5563',
+    },
   },
   components: {
     ...createBaseComponents('light'),
@@ -777,6 +885,29 @@ export const grayTheme = responsiveFontSizes(createTheme({
         root: {
           background: 'linear-gradient(145deg, #374151 0%, #6b7280 100%)',
           boxShadow: '0 4px 20px rgba(55, 65, 81, 0.2)',
+          "& .MuiTypography-root": {
+            color: "#ffffff"
+          },
+          "& .MuiIconButton-root": {
+            color: "#ffffff"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          color: '#1f2937',
+          "&.Mui-selected": {
+            color: '#374151',
+          }
+        } as CSSObject,
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        indicator: {
+          backgroundColor: '#374151',
         } as CSSObject,
       },
     },
@@ -789,6 +920,49 @@ export const grayTheme = responsiveFontSizes(createTheme({
             transform: 'translateY(-2px)',
           },
           transition: 'transform 0.2s ease-in-out',
+          "& .MuiTypography-root": {
+            color: "inherit"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          "& .MuiTypography-root": {
+            color: "#1f2937"
+          }
+        } as CSSObject,
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          color: "#1f2937"
+        },
+        secondary: {
+          color: "#4b5563"
+        }
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          "&:hover": {
+            backgroundColor: "rgba(55, 65, 81, 0.05)"
+          },
+          "&.Mui-selected": {
+            backgroundColor: "rgba(55, 65, 81, 0.1)",
+            "&:hover": {
+              backgroundColor: "rgba(55, 65, 81, 0.15)"
+            },
+            "& .MuiListItemIcon-root": {
+              color: "#374151"
+            },
+            "& .MuiListItemText-primary": {
+              color: "#374151"
+            }
+          }
         } as CSSObject,
       },
     },

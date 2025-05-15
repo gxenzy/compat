@@ -140,7 +140,27 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
   const zoomId = zoomOpen ? 'zoom-popover' : undefined;
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }}>
+    <Paper sx={{ 
+      p: 2, 
+      mb: 2,
+      borderRadius: '8px',
+      className: 'floorPlanControls',
+      height: 'auto',
+      overflow: 'visible',
+      '& .MuiButton-root': {
+        height: '36px',
+      },
+      '& .MuiButtonGroup-root': {
+        height: '36px',
+      },
+      '& .MuiIconButton-root': {
+        height: '36px',
+        width: '36px',
+      },
+      '& .MuiInputBase-root': {
+        height: '36px',
+      }
+    }}>
       <Grid container spacing={2} alignItems="center">
         {/* Floor and View Mode Selection */}
         <Grid item xs={12} sm={6} md={4}>
@@ -155,6 +175,12 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   label="Floor"
                   onChange={handleFloorChange}
                   disabled={isProcessingImage}
+                  sx={{
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderRadius: '8px',
+                    }
+                  }}
                 >
                   {floorOptions.map(floor => (
                     <MenuItem key={floor.value} value={floor.value}>
@@ -165,7 +191,25 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
               </FormControl>
             </Grid>
             <Grid item xs={5}>
-              <ButtonGroup variant="outlined" size="small" fullWidth>
+              <ButtonGroup 
+                variant="outlined" 
+                size="small" 
+                fullWidth
+                sx={{
+                  '& .MuiButton-root': {
+                    borderRadius: '8px',
+                    height: '36px',
+                    '&:first-of-type': {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                    },
+                    '&:last-of-type': {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                    }
+                  }
+                }}
+              >
                 <Tooltip title="Lighting View">
                   <Button 
                     variant={viewMode === 'lighting' ? 'contained' : 'outlined'}
@@ -202,6 +246,11 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   startIcon={<Edit />}
                   disabled={isProcessingImage}
                   size="small"
+                  sx={{
+                    borderRadius: '8px',
+                    height: '36px',
+                    minWidth: '90px'
+                  }}
                 >
                   {isEditMode ? "Editing" : "Edit"}
                 </Button>
@@ -218,6 +267,11 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   startIcon={<Search />}
                   disabled={isProcessingImage}
                   size="small"
+                  sx={{
+                    borderRadius: '8px',
+                    height: '36px',
+                    minWidth: '90px'
+                  }}
                 >
                   Detect
                 </Button>
@@ -234,6 +288,11 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   startIcon={<Add />}
                   disabled={!isEditMode || isProcessingImage}
                   size="small"
+                  sx={{
+                    borderRadius: '8px',
+                    height: '36px',
+                    minWidth: '100px'
+                  }}
                 >
                   Add Room
                 </Button>
@@ -248,8 +307,13 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   color="primary"
                   onClick={handleSynchronizeData}
                   startIcon={<Save />}
-                  disabled={isSaving || isProcessingImage}
                   size="small"
+                  sx={{
+                    borderRadius: '8px',
+                    height: '36px',
+                    minWidth: '80px'
+                  }}
+                  disabled={isSaving || isProcessingImage}
                 >
                   Save
                 </Button>
@@ -264,13 +328,34 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
           <Grid container spacing={1} alignItems="center">
             {/* View Options */}
             <Grid item>
-              <ButtonGroup variant="outlined" size="small">
+              <ButtonGroup 
+                variant="outlined" 
+                size="small"
+                sx={{
+                  '& .MuiButtonBase-root': {
+                    borderRadius: '8px',
+                    height: '36px',
+                    width: '36px',
+                    '&:not(:last-of-type)': {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                    },
+                    '&:not(:first-of-type)': {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                    }
+                  }
+                }}
+              >
                 {/* Grid Toggle */}
                 <Tooltip title={showGridLines ? "Hide Grid" : "Show Grid"}>
                   <IconButton 
                     color={showGridLines ? "primary" : "default"}
                     onClick={() => setShowGridLines(!showGridLines)}
                     disabled={isProcessingImage}
+                    sx={{
+                      bgcolor: showGridLines ? 'rgba(25, 118, 210, 0.1)' : undefined
+                    }}
                   >
                     {showGridLines ? <GridOn /> : <GridOff />}
                   </IconButton>
@@ -282,6 +367,9 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                     color={showLabels ? "primary" : "default"}
                     onClick={() => setShowLabels(!showLabels)}
                     disabled={isProcessingImage}
+                    sx={{
+                      bgcolor: showLabels ? 'rgba(25, 118, 210, 0.1)' : undefined
+                    }}
                   >
                     {showLabels ? <Label /> : <LabelOff />}
                   </IconButton>
@@ -293,6 +381,9 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                     color={isPanMode ? "primary" : "default"}
                     onClick={() => setIsPanMode(!isPanMode)}
                     disabled={isProcessingImage}
+                    sx={{
+                      bgcolor: isPanMode ? 'rgba(25, 118, 210, 0.1)' : undefined
+                    }}
                   >
                     <PanTool />
                   </IconButton>
@@ -302,7 +393,27 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
             
             {/* Zoom Controls */}
             <Grid item>
-              <ButtonGroup variant="outlined" size="small">
+              <ButtonGroup 
+                variant="outlined" 
+                size="small"
+                sx={{
+                  '& .MuiButtonBase-root': {
+                    borderRadius: '8px',
+                    height: '36px',
+                    '&:not(:last-of-type)': {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                    },
+                    '&:not(:first-of-type)': {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                    }
+                  },
+                  '& .MuiButton-root': {
+                    minWidth: '64px'
+                  }
+                }}
+              >
                 <Tooltip title="Zoom Out">
                   <IconButton 
                     onClick={handleZoomOut} 
@@ -368,7 +479,25 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
             
             {/* Reset/Restore Controls */}
             <Grid item>
-              <ButtonGroup variant="outlined" size="small">
+              <ButtonGroup 
+                variant="outlined" 
+                size="small"
+                sx={{
+                  '& .MuiButtonBase-root': {
+                    borderRadius: '8px',
+                    height: '36px',
+                    width: '36px',
+                    '&:not(:last-of-type)': {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                    },
+                    '&:not(:first-of-type)': {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                    }
+                  }
+                }}
+              >
                 <Tooltip title="Reset Room Positions">
                   <IconButton 
                     onClick={handleResetRoomPositions}
@@ -402,7 +531,14 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
             <Grid item>
               <Tooltip title="Measurement Tool (Coming Soon)">
                 <span>
-                  <IconButton disabled>
+                  <IconButton 
+                    disabled
+                    sx={{
+                      borderRadius: '8px',
+                      height: '36px',
+                      width: '36px',
+                    }}
+                  >
                     <Straighten />
                   </IconButton>
                 </span>

@@ -116,7 +116,6 @@ const VoltageDropWidget: React.FC<VoltageDropWidgetProps> = ({
       variant="outlined"
       sx={{ 
         height: '100%',
-        background: 'linear-gradient(to right bottom, #ffffff, #f8faff)'
       }}
     >
       <CardContent>
@@ -136,7 +135,10 @@ const VoltageDropWidget: React.FC<VoltageDropWidgetProps> = ({
         ) : error ? (
           <Alert severity="error">{error}</Alert>
         ) : calculations.length === 0 ? (
-          <Alert severity="info">
+          <Alert 
+            severity="info"
+            sx={{ mb: 2 }}
+          >
             No voltage drop calculations found. Use the calculator to analyze your circuits.
           </Alert>
         ) : (
@@ -289,13 +291,13 @@ const VoltageDropWidget: React.FC<VoltageDropWidgetProps> = ({
           </>
         )}
         
-        <Box mt={2} display="flex" justifyContent="flex-end">
+        <Box mt={2} display="flex" justifyContent="flex-start">
           <Button
-            variant="text"
+            variant="contained"
             color="primary"
             endIcon={<ArrowForwardIcon />}
             onClick={onNavigateToCalculator}
-            size="small"
+            sx={{ alignSelf: 'flex-start' }}
           >
             Open Calculator
           </Button>
