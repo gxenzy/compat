@@ -378,3 +378,4 @@ The application provides several accessibility features to ensure it can be used
 - Visual indicators for accessibility issues
 - Recommendations for fixing accessibility problems
 # compat
+# compat
