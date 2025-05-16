@@ -1,63 +1,137 @@
-# Building Visualization Room Detection System
+# Building Visualization Component
 
-## System Overview
+## Overview
+The Building Visualization component is a comprehensive floor plan visualization tool for energy audits. It allows users to view, analyze, and modify floor plans with interactive features for room management, measurements, and compliance tracking.
 
-The Building Visualization module uses a hybrid approach for room detection that combines neural networks with traditional computer vision techniques:
+## Features
+- **Floor Plan Visualization**: Display and navigate different floors with lighting and power view modes
+- **Room Detection**: Automatically detect rooms from floor plan images using neural networks and computer vision
+- **Room Management**: Create, edit, position and resize rooms with interactive controls
+- **Measurement Tool**: Measure distances directly on the floor plan
+- **Compliance Tracking**: Track energy compliance for each room
+- **Pan & Zoom**: Navigate larger floor plans with interactive pan and zoom
+- **Grid System**: Overlay grid for precise positioning
+- **Multiple Themes**: Consistent UI across different application themes
 
-![Room Detection Architecture](https://i.imgur.com/WQ6E4Xm.png)
+## Setup
 
-## Component Architecture
+### Prerequisites
+- Node.js (v14+)
+- Python 3.6+ (for advanced room detection)
+- OpenCV library (`pip install opencv-python`)
 
-### 1. Detection Pipeline
+### Floor Plan Images
+Floor plan images should be placed in `__all folder__/floorplan` directory. The component expects the following naming convention:
+- `[floor-name]-floor-lighting.jpg` - For lighting views
+- `[floor-name]-floor-power.jpg` - For power views
 
-The room detection system follows this workflow:
+Supported floors: ground, mezzanine, second, third, fourth, fifth
 
-1. **Neural Detection** (`neuralDetection.ts`)
-   - Attempts to detect rooms using deep learning
-   - Uses TensorFlow.js for client-side neural network inference
-   - Falls back to traditional detection if unavailable or unsuccessful
+### Automated Setup
+Use the automated setup script to prepare the floor plans:
 
-2. **Adaptive Learning** (`cnnDetection.ts`)
-   - Traditional computer vision approach using contour detection
-   - Enhanced with pattern recognition that improves over time
-   - Stores successful detection patterns to improve future detections
+```bash
+npm run setup-floorplans
+```
 
-3. **Model Training** (`modelTrainingService.ts`)
-   - Collects training samples from user-verified room data
-   - Manages incremental training of the neural model
-   - Tracks training statistics and model performance
+This script:
+1. Copies floor plans from `__all folder__/floorplan` to the public folder
+2. Processes images to remove text elements like "Figure", "Page Number", etc.
+3. Runs room detection using the Python OpenCV script
 
-### 2. How Neural Detection Works
+## Usage
 
-The neural network component uses semantic segmentation to identify rooms in floor plans:
+### Basic Implementation
+```jsx
+import BuildingVisualization from '../path/to/BuildingVisualization';
 
-- Loads a pre-trained TensorFlow.js model from server or IndexedDB cache
-- Processes floor plan images to generate room masks
-- Converts masks to room coordinates with metadata
-- Improves through incremental training when users verify room detections
+function MyComponent() {
+  return (
+    <div>
+      <BuildingVisualization />
+    </div>
+  );
+}
+```
 
-### 3. How Adaptive Learning Works
+### View Modes
+The component supports two view modes:
+- **Lighting View**: For visualizing lighting layouts and compliance
+- **Power View**: For electrical system layouts and compliance
 
-The adaptive learning system provides a reliable fallback and learns from experience:
+### Room Detection
+Room detection works through:
+1. **JavaScript-based detection** (cnnDetection.ts): Primary detection using TensorFlow.js
+2. **Python-based detection** (roomDetection.py): Advanced detection using OpenCV for better accuracy
 
-- Uses OpenCV-inspired contour detection to find room boundaries
-- Removes text and noise using connected component analysis
-- Maintains a database of successful detection patterns
-- Applies critical thinking to detect missing rooms
-- Performs statistical analysis to identify reliable patterns
+Room detection can handle various architectural elements and removes text elements (like figure numbers) automatically.
 
-## Integration
+### Measurement Tool
+The measurement tool allows:
+- Clicking to place measurement points
+- Real-time distance calculation
+- Visual representation of measurements
 
-The two systems are integrated as follows:
+## Configuration
 
-1. The `detectRoomsWithNeuralNetwork()` function in neuralDetection.ts is the main entry point
-2. It attempts neural detection first, falling back to traditional methods if needed
-3. User feedback is used to train both systems
-4. Both adaptive learning and neural network improve over time
+### Floor Plan Configuration
+Floor plans are configured in `config/floorPlanConfig.ts`. You can add or modify floors and their properties.
 
-## Benefits of Hybrid Approach
+Example:
+```typescript
+export const FLOORS: Record<string, FloorPlanData> = {
+  'ground': {
+    id: 'ground',
+    name: 'Ground Floor',
+    level: 'ground',
+    lighting: '/floorplan/ground-floor-lighting.jpg',
+    power: '/floorplan/ground-floor-power.jpg',
+    description: 'Main entrance level with reception, registrar, and primary offices',
+    order: 1
+  },
+  // Additional floors...
+}
+```
 
-1. **Resiliency**: Even if TensorFlow.js fails to load or run, the system still works
-2. **Continuous Improvement**: Both systems learn from user corrections
-3. **Speed**: Traditional methods provide fast results while neural processing occurs
-4. **Accuracy**: Combines the strengths of both approaches for optimal results 
+### Room Types
+The system supports various room types, each with different visualization styles:
+- Office
+- Classroom
+- Conference Room
+- Restroom
+- Kitchen
+- Storage
+- Electrical Room
+- Hallway
+- Server Room
+- Reception
+- Lobby
+- Laboratory
+
+## Development
+
+### Component Structure
+- **BuildingVisualization**: Main container component
+- **VisualizationControls**: UI controls for floor plan interaction
+- **FloorPlanVisualization**: Core rendering component
+- **RoomDialog**: Dialog for adding/editing rooms
+- **FloorInformation**: Displays information about the selected floor
+- **Utilities**:
+  - measurementTool.ts: Distance measurement utilities
+  - cnnDetection.ts: Room detection algorithms
+  - neuralDetection.ts: Neural network based detection
+
+### Room Detection Algorithm
+The room detection pipeline includes:
+1. Image preprocessing (removing text elements)
+2. Edge detection and contour extraction
+3. Room identification based on geometric properties
+4. Room type classification based on size and position
+5. Adaptive learning to improve detection over time
+
+## Troubleshooting
+
+### Common Issues
+- **Floor plan images not loading**: Ensure images follow the correct naming convention and are placed in `__all folder__/floorplan`
+- **Poor room detection**: Try adjusting lighting or run the Python-based detection for better results
+- **Performance issues**: Large floor plans may cause performance issues; consider optimizing image sizes 

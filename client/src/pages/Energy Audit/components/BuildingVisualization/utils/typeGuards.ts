@@ -40,12 +40,10 @@ export function isDetectedRoom(object: any): object is DetectedRoom {
     typeof object === 'object' &&
     object !== null &&
     'id' in object &&
-    'name' in object &&
     'x' in object &&
     'y' in object &&
     'width' in object &&
-    'height' in object &&
-    'confidence' in object
+    'height' in object
   );
 }
 
@@ -66,7 +64,8 @@ export function ensureNonCompliantArea(area: Partial<NonCompliantArea>): NonComp
     description: area.description || 'No description available',
     compliance: area.compliance || 0,
     recommendations: area.recommendations || [],
-    severity: area.severity || 'medium'
+    severity: area.severity || 'medium',
+    issueType: area.issueType || 'general'
   };
 }
 
@@ -85,7 +84,8 @@ export function createNonCompliantArea(data: Record<string, any>): NonCompliantA
     description: typeof data.description === 'string' ? data.description : 'No description available',
     compliance: typeof data.compliance === 'number' ? data.compliance : 0,
     recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
-    severity: (data.severity as 'low' | 'medium' | 'high') || 'medium'
+    severity: (data.severity as 'low' | 'medium' | 'high') || 'medium',
+    issueType: typeof data.issueType === 'string' ? data.issueType : 'general'
   };
   return area;
 }
@@ -96,7 +96,7 @@ export function createNonCompliantArea(data: Record<string, any>): NonCompliantA
 export function detectedRoomToRoomDetail(room: DetectedRoom): RoomDetail {
   return {
     id: room.id,
-    name: room.name,
+    name: room.name || `Room ${room.id.slice(-5)}`, // Provide default name if undefined
     length: room.width / 50, // Convert to meters
     width: room.height / 50, // Convert to meters
     height: 3, // Default value

@@ -18,7 +18,9 @@ import {
   FormControlLabel,
   Popover,
   Slider,
-  Badge
+  Badge,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import {
   ZoomIn,
@@ -38,12 +40,18 @@ import {
   Download,
   Upload,
   FormatShapes,
-  Image,
   Edit,
   DesignServices,
   Architecture,
   CropFree,
-  Straighten
+  Straighten,
+  LightbulbOutlined,
+  Lightbulb,
+  ElectricBolt,
+  ElectricalServices,
+  Fullscreen,
+  FitScreen,
+  AddCircleOutline
 } from '@mui/icons-material';
 
 interface VisualizationControlsProps {
@@ -61,6 +69,7 @@ interface VisualizationControlsProps {
   setIsPanMode: (isPan: boolean) => void;
   handleDetectRooms: () => void;
   handleResetRoomPositions: () => void;
+  handleFitToView: () => void;
   handleSynchronizeData: () => void;
   handleZoomIn: () => void;
   handleZoomOut: () => void;
@@ -69,6 +78,8 @@ interface VisualizationControlsProps {
   isSaving: boolean;
   isProcessingImage: boolean;
   floorOptions: Array<{value: string, label: string}>;
+  isMeasurementToolActive: boolean;
+  setIsMeasurementToolActive: (isActive: boolean) => void;
 }
 
 /**
@@ -89,6 +100,7 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
   setIsPanMode,
   handleDetectRooms,
   handleResetRoomPositions,
+  handleFitToView,
   handleSynchronizeData,
   handleZoomIn,
   handleZoomOut,
@@ -96,7 +108,9 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
   zoomLevel,
   isSaving,
   isProcessingImage,
-  floorOptions
+  floorOptions,
+  isMeasurementToolActive,
+  setIsMeasurementToolActive
 }) => {
   // State for zoom slider popover
   const [zoomAnchorEl, setZoomAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -134,6 +148,15 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
 
   const handleZoomClose = () => {
     setZoomAnchorEl(null);
+  };
+
+  // Toggle measurement tool
+  const toggleMeasurementTool = () => {
+    // Turn off pan mode if measurement tool is active
+    if (!isMeasurementToolActive) {
+      setIsPanMode(false);
+    }
+    setIsMeasurementToolActive(!isMeasurementToolActive);
   };
 
   const zoomOpen = Boolean(zoomAnchorEl);
@@ -191,44 +214,30 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
               </FormControl>
             </Grid>
             <Grid item xs={5}>
-              <ButtonGroup 
-                variant="outlined" 
-                size="small" 
-                fullWidth
-                sx={{
-                  '& .MuiButton-root': {
-                    borderRadius: '8px',
-                    height: '36px',
-                    '&:first-of-type': {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                    },
-                    '&:last-of-type': {
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                    }
-                  }
-                }}
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                aria-label="view mode"
+                size="small"
               >
-                <Tooltip title="Lighting View">
-                  <Button 
-                    variant={viewMode === 'lighting' ? 'contained' : 'outlined'}
-                    onClick={() => setViewMode('lighting')}
-                    disabled={isProcessingImage}
-                  >
-                    <Image fontSize="small" />
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Power View">
-                  <Button
-                    variant={viewMode === 'power' ? 'contained' : 'outlined'}
-                    onClick={() => setViewMode('power')}
-                    disabled={isProcessingImage}
-                  >
-                    <Architecture fontSize="small" />
-                  </Button>
-                </Tooltip>
-              </ButtonGroup>
+                <ToggleButton value="lighting" aria-label="lighting layout">
+                  <Tooltip title="Lighting Layout">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <LightbulbOutlined sx={{ mr: 0.5 }} />
+                      <Typography variant="body2">Lighting</Typography>
+                    </Box>
+                  </Tooltip>
+                </ToggleButton>
+                <ToggleButton value="power" aria-label="power layout">
+                  <Tooltip title="Power Layout">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <ElectricalServices sx={{ mr: 0.5 }} />
+                      <Typography variant="body2">Power</Typography>
+                    </Box>
+                  </Tooltip>
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Grid>
           </Grid>
         </Grid>
@@ -248,318 +257,173 @@ const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                   size="small"
                   sx={{
                     borderRadius: '8px',
-                    height: '36px',
-                    minWidth: '90px'
                   }}
                 >
-                  {isEditMode ? "Editing" : "Edit"}
+                  Edit
                 </Button>
               </Tooltip>
             </Grid>
 
-            {/* Room Detection */}
+            {/* View Controls */}
             <Grid item>
-              <Tooltip title="Auto-Detect Rooms">
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={handleDetectRooms}
-                  startIcon={<Search />}
-                  disabled={isProcessingImage}
-                  size="small"
-                  sx={{
-                    borderRadius: '8px',
-                    height: '36px',
-                    minWidth: '90px'
-                  }}
-                >
-                  Detect
-                </Button>
-              </Tooltip>
-            </Grid>
-
-            {/* Add Room */}
-            <Grid item>
-              <Tooltip title="Add New Room">
-                <Button
-                  variant="outlined"
-                  color="success"
-                  onClick={handleAddRoom}
-                  startIcon={<Add />}
-                  disabled={!isEditMode || isProcessingImage}
-                  size="small"
-                  sx={{
-                    borderRadius: '8px',
-                    height: '36px',
-                    minWidth: '100px'
-                  }}
-                >
-                  Add Room
-                </Button>
-              </Tooltip>
-            </Grid>
-
-            {/* Save Button */}
-            <Grid item>
-              <Tooltip title="Save Changes">
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSynchronizeData}
-                  startIcon={<Save />}
-                  size="small"
-                  sx={{
-                    borderRadius: '8px',
-                    height: '36px',
-                    minWidth: '80px'
-                  }}
-                  disabled={isSaving || isProcessingImage}
-                >
-                  Save
-                </Button>
-              </Tooltip>
-            </Grid>
-          </Grid>
-        </Grid>
-
-        {/* Bottom Tools Bar */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Grid container spacing={1} alignItems="center">
-            {/* View Options */}
-            <Grid item>
-              <ButtonGroup 
-                variant="outlined" 
-                size="small"
-                sx={{
-                  '& .MuiButtonBase-root': {
-                    borderRadius: '8px',
-                    height: '36px',
-                    width: '36px',
-                    '&:not(:last-of-type)': {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                    },
-                    '&:not(:first-of-type)': {
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                    }
-                  }
-                }}
-              >
-                {/* Grid Toggle */}
-                <Tooltip title={showGridLines ? "Hide Grid" : "Show Grid"}>
-                  <IconButton 
-                    color={showGridLines ? "primary" : "default"}
-                    onClick={() => setShowGridLines(!showGridLines)}
-                    disabled={isProcessingImage}
-                    sx={{
-                      bgcolor: showGridLines ? 'rgba(25, 118, 210, 0.1)' : undefined
-                    }}
-                  >
-                    {showGridLines ? <GridOn /> : <GridOff />}
-                  </IconButton>
-                </Tooltip>
-                
-                {/* Labels Toggle */}
-                <Tooltip title={showLabels ? "Hide Labels" : "Show Labels"}>
-                  <IconButton
-                    color={showLabels ? "primary" : "default"}
-                    onClick={() => setShowLabels(!showLabels)}
-                    disabled={isProcessingImage}
-                    sx={{
-                      bgcolor: showLabels ? 'rgba(25, 118, 210, 0.1)' : undefined
-                    }}
-                  >
-                    {showLabels ? <Label /> : <LabelOff />}
-                  </IconButton>
-                </Tooltip>
-                
-                {/* Pan Mode Toggle */}
-                <Tooltip title={isPanMode ? "Exit Pan Mode" : "Enter Pan Mode"}>
-                  <IconButton 
-                    color={isPanMode ? "primary" : "default"}
-                    onClick={() => setIsPanMode(!isPanMode)}
-                    disabled={isProcessingImage}
-                    sx={{
-                      bgcolor: isPanMode ? 'rgba(25, 118, 210, 0.1)' : undefined
-                    }}
-                  >
-                    <PanTool />
-                  </IconButton>
-                </Tooltip>
-              </ButtonGroup>
-            </Grid>
-            
-            {/* Zoom Controls */}
-            <Grid item>
-              <ButtonGroup 
-                variant="outlined" 
-                size="small"
-                sx={{
-                  '& .MuiButtonBase-root': {
-                    borderRadius: '8px',
-                    height: '36px',
-                    '&:not(:last-of-type)': {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                    },
-                    '&:not(:first-of-type)': {
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                    }
-                  },
-                  '& .MuiButton-root': {
-                    minWidth: '64px'
-                  }
-                }}
-              >
-                <Tooltip title="Zoom Out">
-                  <IconButton 
-                    onClick={handleZoomOut} 
-                    disabled={isProcessingImage || zoomLevel <= 0.5}
-                  >
-                    <ZoomOut />
-                  </IconButton>
-                </Tooltip>
-                
-                <Tooltip title="Zoom Level">
-                  <Button 
-                    onClick={handleZoomClick}
-                    disabled={isProcessingImage}
-                  >
-                    {Math.round(zoomLevel * 100)}%
-                  </Button>
-                </Tooltip>
-                
+              <ButtonGroup size="small" aria-label="view controls">
                 <Tooltip title="Zoom In">
-                  <IconButton 
-                    onClick={handleZoomIn} 
-                    disabled={isProcessingImage || zoomLevel >= 3}
-                  >
-                    <ZoomIn />
-                  </IconButton>
+                  <span>
+                    <IconButton 
+                      onClick={handleZoomIn}
+                      disabled={isProcessingImage || zoomLevel >= 3.0}
+                    >
+                      <ZoomIn />
+                    </IconButton>
+                  </span>
                 </Tooltip>
-              </ButtonGroup>
-              
-              {/* Zoom Slider Popover */}
-              <Popover
-                id={zoomId}
-                open={zoomOpen}
-                anchorEl={zoomAnchorEl}
-                onClose={handleZoomClose}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'center',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'center',
-                }}
-              >
-                <Box sx={{ p: 2, width: 200 }}>
-                  <Typography id="zoom-slider-label" gutterBottom>
-                    Zoom Level: {Math.round(localZoomLevel * 100)}%
-                  </Typography>
-                  <Slider
-                    value={localZoomLevel}
-                    onChange={handleZoomChange}
-                    onChangeCommitted={handleZoomChangeCommitted}
-                    aria-labelledby="zoom-slider-label"
-                    valueLabelDisplay="auto"
-                    valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
-                    step={0.1}
-                    marks
-                    min={0.5}
-                    max={3}
-                  />
-                </Box>
-              </Popover>
-            </Grid>
-            
-            {/* Reset/Restore Controls */}
-            <Grid item>
-              <ButtonGroup 
-                variant="outlined" 
-                size="small"
-                sx={{
-                  '& .MuiButtonBase-root': {
-                    borderRadius: '8px',
-                    height: '36px',
-                    width: '36px',
-                    '&:not(:last-of-type)': {
-                      borderTopRightRadius: 0,
-                      borderBottomRightRadius: 0,
-                    },
-                    '&:not(:first-of-type)': {
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                    }
-                  }
-                }}
-              >
+                
+                <Tooltip title="Zoom Out">
+                  <span>
+                    <IconButton 
+                      onClick={handleZoomOut}
+                      disabled={isProcessingImage || zoomLevel <= 0.5}
+                    >
+                      <ZoomOut />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
+                <Tooltip title="Pan/Move">
+                  <span>
+                    <IconButton 
+                      onClick={() => setIsPanMode(!isPanMode)}
+                      color={isPanMode ? "primary" : "default"}
+                      disabled={isProcessingImage}
+                    >
+                      <PanTool />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
                 <Tooltip title="Reset Room Positions">
-                  <IconButton 
-                    onClick={handleResetRoomPositions}
-                    disabled={isProcessingImage}
-                  >
-                    <RestartAlt />
-                  </IconButton>
+                  <span>
+                    <IconButton 
+                      onClick={handleResetRoomPositions}
+                      disabled={isProcessingImage}
+                    >
+                      <RestartAlt />
+                    </IconButton>
+                  </span>
                 </Tooltip>
-                <Tooltip title="Fit to View">
-                  <IconButton 
-                    onClick={() => {
-                      // Reset zoom and pan position
-                      // This would need additional implementation in parent
-                      // For now approximation by resetting the zoom level
-                      while (zoomLevel > 1) {
-                        handleZoomOut();
-                      }
-                      while (zoomLevel < 1) {
-                        handleZoomIn();
-                      }
-                    }}
-                    disabled={isProcessingImage}
-                  >
-                    <CropFree />
-                  </IconButton>
+                
+                <Tooltip title="Fit To View">
+                  <span>
+                    <IconButton 
+                      onClick={handleFitToView}
+                      disabled={isProcessingImage}
+                    >
+                      <FitScreen />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
+                <Tooltip title="Measurement Tool">
+                  <span>
+                    <IconButton 
+                      onClick={() => setIsMeasurementToolActive(!isMeasurementToolActive)}
+                      color={isMeasurementToolActive ? "primary" : "default"}
+                      disabled={isProcessingImage}
+                    >
+                      <Straighten />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </ButtonGroup>
             </Grid>
-            
-            {/* Measurement Mode - Not implemented yet */}
+
+            {/* Feature Controls */}
             <Grid item>
-              <Tooltip title="Measurement Tool (Coming Soon)">
-                <span>
-                  <IconButton 
-                    disabled
-                    sx={{
-                      borderRadius: '8px',
-                      height: '36px',
-                      width: '36px',
-                    }}
-                  >
-                    <Straighten />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Grid>
-            
-            {/* Right Aligned Status */}
-            <Grid item xs sx={{ textAlign: 'right' }}>
-              {isProcessingImage ? (
-                <Typography variant="body2" color="text.secondary">
-                  Processing image...
-                </Typography>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {isEditMode ? "Edit mode active" : "View mode"}
-                </Typography>
-              )}
+              <ButtonGroup size="small" aria-label="feature controls">
+                <Tooltip title={showGridLines ? "Hide Grid" : "Show Grid"}>
+                  <span>
+                    <IconButton 
+                      onClick={() => setShowGridLines(!showGridLines)}
+                      color={showGridLines ? "primary" : "default"}
+                      disabled={isProcessingImage}
+                    >
+                      {showGridLines ? <GridOn /> : <GridOff />}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
+                <Tooltip title={showLabels ? "Hide Labels" : "Show Labels"}>
+                  <span>
+                    <IconButton 
+                      onClick={() => setShowLabels(!showLabels)}
+                      color={showLabels ? "primary" : "default"}
+                      disabled={isProcessingImage}
+                    >
+                      {showLabels ? <Label /> : <LabelOff />}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
+                <Tooltip title="Add Room">
+                  <span>
+                    <IconButton 
+                      onClick={handleAddRoom}
+                      disabled={isProcessingImage || !isEditMode}
+                    >
+                      <AddCircleOutline />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                
+                <Tooltip title="Detect Rooms">
+                  <span>
+                    <IconButton 
+                      onClick={handleDetectRooms}
+                      disabled={isProcessingImage}
+                      color="primary"
+                    >
+                      <Search />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </ButtonGroup>
             </Grid>
           </Grid>
         </Grid>
       </Grid>
+
+      {/* Zoom Level Popover */}
+      <Popover
+        id={zoomId}
+        open={zoomOpen}
+        anchorEl={zoomAnchorEl}
+        onClose={handleZoomClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+      >
+        <Box sx={{ p: 2, width: 300 }}>
+          <Typography id="zoom-slider" gutterBottom>
+            Zoom Level
+          </Typography>
+          <Slider
+            value={localZoomLevel}
+            onChange={handleZoomChange}
+            onChangeCommitted={handleZoomChangeCommitted}
+            min={0.5}
+            max={3.0}
+            step={0.1}
+            aria-labelledby="zoom-slider"
+            valueLabelDisplay="auto"
+            valueLabelFormat={value => `${Math.round(value * 100)}%`}
+          />
+        </Box>
+      </Popover>
     </Paper>
   );
 };

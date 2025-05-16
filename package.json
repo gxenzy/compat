@@ -17,11 +17,16 @@
     "setup-db": "npm run migrate && npm run seed",
     "install-all": "npm install && cd client && npm install && cd ../server && npm install",
     "setup": "node setup.js",
+    "setup-deps": "node setup-dependencies.js",
+    "postclone": "node setup-dependencies.js",
     "health-check": "node server/src/scripts/verify-backend-health.js",
     "setup:db": "node server/src/scripts/setup-database.js",
     "verify:db": "node server/src/scripts/verify-database.js",
     "migrate:down": "node server/src/scripts/run_migrations.js --down",
-    "seed:tags": "cd server && npx ts-node src/scripts/seed-tags.ts"
+    "seed:tags": "cd server && npx ts-node src/scripts/seed-tags.ts",
+    "process-floorplans": "node server/src/scripts/processFloorplans.js",
+    "detect-rooms": "python server/src/scripts/roomDetection.py",
+    "setup-floorplans": "npm run process-floorplans && npm run detect-rooms"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.16.5",

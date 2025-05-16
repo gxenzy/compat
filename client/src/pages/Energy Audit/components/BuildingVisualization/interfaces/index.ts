@@ -25,14 +25,18 @@ export interface Point {
  */
 export interface DetectedRoom {
   id: string;
-  name: string;
-  type: string;
+  name?: string;
+  type?: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  confidence: number;
-  polygon?: Point[];
+  confidence?: number;
+  points?: Point[];
+  polygon?: Point[]; // For backward compatibility
+  editable?: boolean;
+  isDetected?: boolean;
+  shape?: 'rect' | 'poly' | 'circle';
 }
 
 /**

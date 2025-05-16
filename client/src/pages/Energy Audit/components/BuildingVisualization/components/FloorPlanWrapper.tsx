@@ -31,6 +31,11 @@ interface FloorPlanWrapperProps {
   onPanStart: (e: React.MouseEvent) => void;
   onPanMove: (e: React.MouseEvent) => void;
   onPanEnd: () => void;
+  isMeasurementToolActive: boolean;
+  measurementState: any;
+  handleMeasurementStart: (e: React.MouseEvent) => void;
+  handleMeasurementMove: (e: React.MouseEvent) => void;
+  handleMeasurementEnd: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -70,6 +75,11 @@ const FloorPlanWrapper: React.FC<FloorPlanWrapperProps> = (props) => {
       onDelete={props.onDelete}
       selectedRoom={props.selectedRoom}
       onSelectRoom={props.onSelectRoom}
+      isMeasurementToolActive={props.isMeasurementToolActive}
+      measurementState={props.measurementState}
+      handleMeasurementStart={props.handleMeasurementStart}
+      handleMeasurementMove={props.handleMeasurementMove}
+      handleMeasurementEnd={props.handleMeasurementEnd}
     />
   );
 };

@@ -7,21 +7,36 @@ import { getItem, setItem } from '../../../../../utils/storageUtils';
 
 // Import TensorFlow dynamically to prevent rendering issues
 let tf: any = null;
+let tfLoaded = false;
+let tfLoadAttempted = false;
+let tfLoadPromise: Promise<any> | null = null;
 
 // Load TensorFlow safely
-try {
+const loadTensorFlow = () => {
+  if (tfLoadAttempted) return tfLoadPromise;
+  
+  tfLoadAttempted = true;
+  
   // This will only execute in browser environments when TensorFlow is available
   if (typeof window !== 'undefined') {
-    import('@tensorflow/tfjs').then(tensorflowModule => {
+    tfLoadPromise = import('@tensorflow/tfjs').then(tensorflowModule => {
       tf = tensorflowModule;
+      tfLoaded = true;
       console.log('TensorFlow.js loaded successfully');
+      return tensorflowModule;
     }).catch(err => {
-      console.warn('Failed to load TensorFlow.js:', err);
+      console.error('Failed to load TensorFlow.js:', err);
+      return null;
     });
+    
+    return tfLoadPromise;
   }
-} catch (err) {
-  console.warn('TensorFlow.js import error:', err);
-}
+  
+  return Promise.resolve(null);
+};
+
+// Trigger loading
+loadTensorFlow();
 
 const MODEL_STORAGE_KEY = 'floorplan-detection-model';
 const LOCAL_MODEL_KEY = 'floorplan-detection-local-model';
@@ -36,17 +51,20 @@ export class NeuralDetectionSystem {
   private readonly modelUrl = '/models/room-detection/model.json';
   private isTraining: boolean = false;
   private readonly tensorflowAvailable: boolean;
+  private modelLoadPromise: Promise<boolean> | null = null;
   
   constructor() {
-    // Check if TensorFlow.js is available
-    this.tensorflowAvailable = typeof tf !== 'undefined' && tf !== null;
+    // Check if TensorFlow.js is available or will be available soon
+    this.tensorflowAvailable = tfLoaded || tfLoadAttempted;
     
-    // Attempt to load model only if TensorFlow is available
+    // Attempt to load model only if TensorFlow is available or being loaded
     if (this.tensorflowAvailable) {
       // Defer model loading to ensure TensorFlow is fully loaded
-      setTimeout(() => this.loadModel(), 1000);
+      setTimeout(() => {
+        this.modelLoadPromise = this.loadModel();
+      }, 1000);
     } else {
-      console.warn('TensorFlow.js is not available, neural detection disabled');
+      console.warn('TensorFlow.js is not available and no load attempt was made, neural detection disabled');
     }
   }
   
@@ -54,14 +72,24 @@ export class NeuralDetectionSystem {
    * Checks if the detection system is ready
    */
   public isReady(): boolean {
-    return this.tensorflowAvailable && this.isModelLoaded && this.model !== null;
+    return tfLoaded && this.isModelLoaded && this.model !== null;
   }
   
   /**
    * Loads the TensorFlow.js model for room detection
    */
   async loadModel(): Promise<boolean> {
-    if (!this.tensorflowAvailable) {
+    // Wait for TensorFlow to load if it's in progress
+    if (!tfLoaded && tfLoadPromise) {
+      try {
+        await tfLoadPromise;
+      } catch (error) {
+        console.error('Error waiting for TensorFlow to load:', error);
+        return false;
+      }
+    }
+    
+    if (!tfLoaded) {
       console.warn('TensorFlow.js is not available. Using fallback detection methods.');
       return false;
     }
@@ -88,27 +116,47 @@ export class NeuralDetectionSystem {
       }
       
       if (!loadedModel) {
-        // Load from server
-        loadedModel = await tf.loadLayersModel(this.modelUrl);
-        console.log('Model loaded from server');
+        // Log model URL for debugging
+        console.log('Loading model from URL:', this.modelUrl);
         
-        // Cache the model
-        await loadedModel.save('indexeddb://' + MODEL_STORAGE_KEY);
-        setItem(LOCAL_MODEL_KEY, { timestamp: Date.now() });
+        try {
+          // First check if model exists by fetching metadata
+          const response = await fetch(this.modelUrl);
+          if (!response.ok) {
+            console.warn(`Model not found at ${this.modelUrl}: ${response.status} ${response.statusText}`);
+            console.log('Using fallback detection methods instead of neural network');
+            return false;
+          }
+          
+          // Load from server
+          loadedModel = await tf.loadGraphModel(this.modelUrl);
+          console.log('Model loaded from server');
+          
+          // Cache the model
+          await loadedModel.save('indexeddb://' + MODEL_STORAGE_KEY);
+          setItem(LOCAL_MODEL_KEY, { timestamp: Date.now() });
+        } catch (error) {
+          console.warn('Error loading model from server:', error);
+          console.log('Using fallback detection methods instead of neural network');
+          return false;
+        }
       }
       
       this.model = loadedModel;
       this.isModelLoaded = true;
       
       // Warm up the model with a dummy prediction
-      const dummyInput = tf.zeros([1, 224, 224, 3]);
-      this.model.predict(dummyInput);
-      dummyInput.dispose();
+      if (this.model) {
+        const dummyInput = tf.zeros([1, 300, 300, 3]);
+        this.model.predict(dummyInput);
+        dummyInput.dispose();
+      }
       
       console.log('Room detection model loaded successfully');
       return true;
     } catch (error) {
-      console.error('Error loading neural room detection model:', error);
+      console.warn('Error loading neural room detection model:', error);
+      console.log('Using fallback detection methods instead of neural network');
       return false;
     }
   }
@@ -120,7 +168,7 @@ export class NeuralDetectionSystem {
    * @param height Output height
    */
   async detectRooms(imageElement: HTMLImageElement, width: number, height: number): Promise<DetectedRoom[]> {
-    if (!this.tensorflowAvailable || !this.isModelLoaded) {
+    if (!tfLoaded || !this.isModelLoaded) {
       console.warn('Neural detection unavailable, using fallback');
       return [];
     }
@@ -130,85 +178,85 @@ export class NeuralDetectionSystem {
       // Convert image to tensor and preprocess
       const imageTensor = tf.browser.fromPixels(imageElement);
       
-      // Normalize and resize the image
-      const resized = tf.image.resizeBilinear(imageTensor, [224, 224]);
-      const normalized = resized.div(255.0).expandDims(0);
+      // Normalize and resize the image to match model input shape (300x300)
+      const resized = tf.image.resizeBilinear(imageTensor, [300, 300]);
+      const normalized = tf.div(resized, 255.0);
+      const batched = normalized.expandDims(0);
       
       // Run inference
       console.time('Neural inference');
-      const predictions = this.model.predict(normalized);
+      const predictions = this.model.predict(batched);
       console.timeEnd('Neural inference');
       
-      // Extract room masks from predictions
-      const masks = await this.extractRoomMasks(predictions, imageElement.width, imageElement.height);
+      console.log('Prediction outputs:', Object.keys(predictions));
       
-      // Convert masks to room objects
-      const rooms = this.convertMasksToRooms(masks, width, height);
+      // For object detection model we expect these outputs
+      const boxes = await predictions['detection_boxes'].array();
+      const scores = await predictions['detection_scores'].array();
+      const classes = await predictions['detection_classes'].array();
+      const numDetections = await predictions['num_detections'].array();
+      
+      console.log(`Detected ${numDetections[0]} potential rooms`);
+      
+      // Process detection results
+      const detectedRooms: DetectedRoom[] = [];
+      const imgWidth = imageElement.width;
+      const imgHeight = imageElement.height;
+      
+      // Convert normalized box coordinates to room objects
+      const boxesArray = boxes[0];
+      const scoresArray = scores[0];
+      const classesArray = classes[0];
+      
+      for (let i = 0; i < numDetections[0]; i++) {
+        // Only include high confidence detections
+        if (scoresArray[i] < 0.5) continue;
+        
+        const box = boxesArray[i];
+        const [y1, x1, y2, x2] = box; // Note: boxes are [y1, x1, y2, x2] normalized
+        
+        // Convert normalized coordinates to pixels
+        const roomX = x1 * imgWidth;
+        const roomY = y1 * imgHeight;
+        const roomWidth = (x2 - x1) * imgWidth;
+        const roomHeight = (y2 - y1) * imgHeight;
+        
+        // Scale to container size
+        const scaledX = roomX * (width / imgWidth);
+        const scaledY = roomY * (height / imgHeight);
+        const scaledWidth = roomWidth * (width / imgWidth);
+        const scaledHeight = roomHeight * (height / imgHeight);
+        
+        // Determine room type based on class
+        // These types should match your ROOM_CLASS_MAPPING
+        const roomTypes = ['office', 'conference', 'restroom', 'storage', 'common'];
+        const classIndex = Math.floor(classesArray[i]) - 1; // Adjust for 0-indexing
+        const roomType = classIndex >= 0 && classIndex < roomTypes.length 
+          ? roomTypes[classIndex]
+          : 'unknown';
+          
+        detectedRooms.push({
+          id: `neural-room-${Date.now()}-${i}`,
+          name: `${roomType.charAt(0).toUpperCase() + roomType.slice(1)} ${i + 1}`,
+          x: Math.round(scaledX),
+          y: Math.round(scaledY),
+          width: Math.round(scaledWidth),
+          height: Math.round(scaledHeight),
+          confidence: scoresArray[i],
+          type: roomType
+        });
+      }
       
       // Clean up tensors
-      imageTensor.dispose();
-      resized.dispose();
-      normalized.dispose();
-      predictions.dispose();
+      tf.dispose([imageTensor, resized, normalized, batched, ...Object.values(predictions)]);
       
-      console.log(`Neural detection found ${rooms.length} rooms`);
-      return rooms;
+      console.log(`Neural detection found ${detectedRooms.length} rooms`);
+      return detectedRooms;
       
     } catch (error) {
       console.error('Error in neural room detection:', error);
       return [];
     }
-  }
-  
-  /**
-   * Extract room masks from model predictions
-   */
-  private async extractRoomMasks(predictions: any, originalWidth: number, originalHeight: number): Promise<any[]> {
-    // This is a simplified placeholder for mask extraction
-    // In a real implementation, this would process semantic segmentation results
-    
-    const maskTensor = predictions;
-    const maskArray = await maskTensor.array();
-    
-    // Process masks (simplified)
-    const masks: any[] = [];
-    const threshold = 0.5;
-    
-    // In a real implementation, we'd identify connected components in segmentation masks
-    // This is a placeholder simulation
-    for (let i = 0; i < 5; i++) {
-      // For each class/room type
-      const randomSize = 0.1 + Math.random() * 0.3; // 10-40% of image size
-      
-      masks.push({
-        x: Math.random() * (1.0 - randomSize),
-        y: Math.random() * (1.0 - randomSize),
-        width: randomSize,
-        height: randomSize,
-        confidence: 0.7 + Math.random() * 0.3,
-        type: ['office', 'conference', 'kitchen', 'bathroom', 'storage'][i % 5]
-      });
-    }
-    
-    return masks;
-  }
-  
-  /**
-   * Convert detected masks to room objects
-   */
-  private convertMasksToRooms(masks: any[], width: number, height: number): DetectedRoom[] {
-    return masks.map((mask, index) => {
-      return {
-        id: `neural-room-${Date.now()}-${index}`,
-        name: `${mask.type.charAt(0).toUpperCase() + mask.type.slice(1)} ${index + 1}`,
-        x: Math.round(mask.x * width),
-        y: Math.round(mask.y * height),
-        width: Math.round(mask.width * width),
-        height: Math.round(mask.height * height),
-        confidence: mask.confidence,
-        type: mask.type
-      };
-    });
   }
   
   /**
@@ -286,25 +334,35 @@ export const detectRoomsWithNeuralNetwork = async (
   height: number,
   fallbackDetection: (src: string, w: number, h: number) => Promise<ImageDetectionResult>
 ): Promise<ImageDetectionResult> => {
-  // Load image
-  const img = await loadImage(imageSrc);
-  
-  // Try neural detection first
-  const neuralRooms = await neuralDetection.detectRooms(img, width, height);
-  
-  // If neural detection found rooms, use them
-  if (neuralRooms && neuralRooms.length > 0) {
-    console.log('Using neural detection results');
-    return {
-      rooms: neuralRooms,
-      orientation: img.width > img.height ? 'landscape' : 'portrait',
-      confidenceScore: 0.85 // Neural detection has high confidence
-    };
+  try {
+    // Debug TensorFlow and model status
+    debugNeuralDetection();
+    
+    // Load image
+    const img = await loadImage(imageSrc);
+    console.log(`Image loaded: ${img.width}x${img.height}`);
+    
+    // Try neural detection first
+    const neuralRooms = await neuralDetection.detectRooms(img, width, height);
+    
+    // If neural detection found rooms, use them
+    if (neuralRooms && neuralRooms.length > 0) {
+      console.log('Using neural detection results');
+      return {
+        rooms: neuralRooms,
+        orientation: img.width > img.height ? 'landscape' : 'portrait',
+        confidenceScore: 0.85 // Neural detection has high confidence
+      };
+    }
+    
+    // Fall back to traditional methods
+    console.log('Neural detection failed or found no rooms, falling back to traditional detection');
+    return await fallbackDetection(imageSrc, width, height);
+  } catch (error) {
+    console.error('Error in neural room detection pipeline:', error);
+    // Fall back to traditional methods on error
+    return await fallbackDetection(imageSrc, width, height);
   }
-  
-  // Fall back to traditional methods
-  console.log('Neural detection failed or found no rooms, falling back to traditional detection');
-  return await fallbackDetection(imageSrc, width, height);
 };
 
 /**
@@ -315,7 +373,26 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = (e) => reject(new Error(`Failed to load image: ${e}`));
     img.src = src;
   });
+}
+
+/**
+ * Debug function to help diagnose neural detection issues
+ */
+function debugNeuralDetection() {
+  console.group('Neural Detection Debug Info');
+  console.log('TensorFlow loaded:', tfLoaded);
+  console.log('TensorFlow load attempted:', tfLoadAttempted);
+  console.log('TensorFlow object:', tf ? 'Available' : 'Not available');
+  
+  if (tf) {
+    console.log('TensorFlow version:', tf.version);
+    console.log('Backend:', tf.getBackend());
+    console.log('Available backends:', tf.engine().registryFactory);
+  }
+  
+  console.log('Neural detection ready:', neuralDetection.isReady());
+  console.groupEnd();
 } 

@@ -29,11 +29,11 @@ interface FloorPlanVisualizationProps {
   onRoomDragMove: (e: React.MouseEvent) => void;
   onRoomDragEnd: () => void;
   onEditMenuOpen: (roomId: string) => void;
-  onHotspotDragStart: (hotspotId: string, position: string, e: React.MouseEvent) => void;
+  onHotspotDragStart: (roomId: string, position: string, e: React.MouseEvent) => void;
   onHotspotDragMove: (e: React.MouseEvent) => void;
   onHotspotDragEnd: () => void;
   onDelete: (roomId: string) => void;
-  onSelectRoom: (room: RoomDetail) => void;
+  onSelectRoom: (room: DetectedRoom | RoomDetail) => void;
 }
 
 /**
@@ -186,21 +186,18 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
   const handleRoomClick = (room: RoomDetail, e: React.MouseEvent) => {
     if (isPanMode || isLoading || isProcessingImage) return;
     
-    // Update selection using onSelectRoom
-    onSelectRoom(room);
-    
-    // Also call the click handler with the room
+    // Call the click handler with the room
     onRoomClick(room);
     
     e.stopPropagation();
   };
-  
+
   return (
     <Box 
       ref={containerRef}
-      sx={{ 
+      sx={{
         position: 'relative',
-        width: '100%',
+        width: '100%', 
         height: '100%',
         overflow: 'hidden',
         backgroundColor: '#f5f5f5',
@@ -211,62 +208,93 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Loading overlay */}
-      {(isLoading || isProcessingImage) && (
-        <Box
-          sx={{
+      {/* Floor plan image */}
+      {imageLoaded && (
+        <div
+          style={{
             position: 'absolute',
-            top: 0,
-            left: 0,
+            top: `${panOffset.y}px`,
+            left: `${panOffset.x}px`,
+            transformOrigin: '0 0',
+            transform: `scale(${zoomLevel})`,
+            transition: isPanMode ? 'none' : 'transform 0.3s ease-out',
+            backgroundImage: `url(${displayImage})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
             width: '100%',
             height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            zIndex: 100
+            zIndex: 0
           }}
-        >
-          <CircularProgress size={60} />
-          <Typography variant="h6" sx={{ mt: 2 }}>
-            {isProcessingImage ? 'Processing Image...' : 'Loading...'}
+        />
+      )}
+      
+      {/* Loading indicator */}
+      {(isLoading || !imageLoaded) && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10
+        }}>
+          <CircularProgress />
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Loading floor plan...
           </Typography>
         </Box>
       )}
       
-      {/* Floor plan image */}
-      <Box
-        sx={{
-          position: 'relative',
+      {/* Room detection loading */}
+      {isProcessingImage && (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: '20%', 
+          right: '5%', 
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: 'white',
+          padding: 2,
+          borderRadius: 1,
+          zIndex: 100
+        }}>
+          <CircularProgress size={24} color="inherit" />
+          <Typography variant="body2" sx={{ ml: 2, display: 'inline' }}>
+            Detecting rooms...
+          </Typography>
+        </Box>
+      )}
+      
+      {/* Grid lines */}
+      {showGridLines && imageLoaded && (
+        <Box sx={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'repeating-linear-gradient(#0000, #0000 49px, #8884 50px, #8882 51px, #0000 52px), repeating-linear-gradient(90deg, #0000, #0000 49px, #8884 50px, #8882 51px, #0000 52px)',
+          backgroundPosition: `${panOffset.x}px ${panOffset.y}px`,
+          backgroundSize: `${50 * zoomLevel}px ${50 * zoomLevel}px`,
+          pointerEvents: 'none',
+          zIndex: 1
+        }} />
+      )}
+      
+      {/* Content layer with proper transforms */}
+      <div
+        style={{
+          position: 'absolute',
+          top: `${panOffset.y}px`,
+          left: `${panOffset.x}px`,
+          transformOrigin: '0 0',
+          transform: `scale(${zoomLevel})`,
+          transition: isPanMode ? 'none' : 'transform 0.3s ease-out',
           width: '100%',
           height: '100%',
-          transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-          transition: isPanMode ? 'none' : 'transform 0.2s ease-out',
-          transformOrigin: 'center',
-          backgroundImage: `url(${displayImage})`,
-          backgroundSize: 'contain',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
+          zIndex: 1
         }}
       >
-        {/* Grid lines */}
-        {showGridLines && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px)',
-              backgroundSize: '20px 20px',
-              pointerEvents: 'none'
-            }}
-          />
-        )}
-        
-        {/* Rooms */}
+        {/* Render rooms */}
         {roomData.map(room => (
           <Box
             key={room.id}
@@ -303,8 +331,8 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  color: 'white',
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  color: 'black',
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
                   padding: '2px 6px',
                   borderRadius: 1,
                   whiteSpace: 'nowrap',
@@ -371,192 +399,93 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
           </Box>
         ))}
         
-        {/* Detected Rooms */}
-        {detectedRooms.map(room => (
-          <Box
-            key={`detected-${room.id}`}
-            sx={{
-              position: 'absolute',
-              top: room.y,
-              left: room.x,
-              width: room.width,
-              height: room.height,
-              border: '2px dashed',
-              borderColor: 'primary.main',
-              backgroundColor: 'rgba(33, 150, 243, 0.2)',
-              cursor: 'pointer',
-              zIndex: 6,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              animation: 'pulse 2s infinite',
-              '@keyframes pulse': {
-                '0%': { boxShadow: '0 0 0 0 rgba(33, 150, 243, 0.4)' },
-                '70%': { boxShadow: '0 0 0 10px rgba(33, 150, 243, 0)' },
-                '100%': { boxShadow: '0 0 0 0 rgba(33, 150, 243, 0)' }
-              }
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'white',
-                backgroundColor: 'rgba(33, 150, 243, 0.7)',
-                padding: '2px 4px',
-                borderRadius: '2px',
-                fontWeight: 'bold'
-              }}
-            >
-              {room.name}
-            </Typography>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: 'white', 
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                padding: '1px 3px',
-                borderRadius: '2px',
-                fontSize: '0.7rem'
-              }}
-            >
-              {Math.round(room.confidence * 100)}% confidence
-            </Typography>
-          </Box>
-        ))}
-        
-        {/* Apply detected rooms button */}
-        {detectedRooms.length > 0 && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 16,
-              right: 16,
-              zIndex: 10
-            }}
-          >
-            <Button 
-              variant="contained" 
-              color="primary"
-              size="small"
-              onClick={onApplyDetections}
-            >
-              Apply {detectedRooms.length} Detected Rooms
-            </Button>
-          </Box>
+        {/* Detected Rooms - Only show if we have detected rooms */}
+        {detectedRooms && detectedRooms.length > 0 && (
+          <>
+            {detectedRooms.map(room => (
+              <Box
+                key={`detected-${room.id}`}
+                sx={{
+                  position: 'absolute',
+                  top: room.y,
+                  left: room.x,
+                  width: room.width,
+                  height: room.height,
+                  border: '2px solid',
+                  borderColor: 'primary.main',
+                  backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                  cursor: 'pointer',
+                  zIndex: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+                onClick={(e) => onSelectRoom && onSelectRoom(room)}
+              >
+                {showLabels && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'black',
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                      padding: '2px 4px',
+                      borderRadius: '2px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {room.name}
+                  </Typography>
+                )}
+              </Box>
+            ))}
+            
+            {/* Apply detected rooms button */}
+            {detectedRooms.length > 0 && (
+              <Box sx={{ position: 'absolute', bottom: 16, right: 16, zIndex: 1000 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={onApplyDetections}
+                  startIcon={<span role="img" aria-label="Check">✓</span>}
+                >
+                  Apply Detected Rooms
+                </Button>
+                <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1, color: 'white', backgroundColor: 'rgba(0,0,0,0.6)', p: 0.5, borderRadius: 1 }}>
+                  {detectionConfidence > 0 ? `Confidence: ${Math.round(detectionConfidence * 100)}%` : ''}
+                </Typography>
+              </Box>
+            )}
+          </>
         )}
-        
-        {/* Non-compliant areas */}
-        {nonCompliantAreas.map(area => (
-          <Box
-            key={area.id}
-            sx={{
-              position: 'absolute',
-              top: area.y,
-              left: area.x,
-              width: area.width,
-              height: area.height,
-              border: '2px dashed',
-              borderColor: 
-                area.compliance >= 85 ? 'success.main' :
-                area.compliance >= 70 ? 'warning.main' : 
-                'error.main',
-              backgroundColor:
-                area.compliance >= 85 ? 'rgba(76, 175, 80, 0.1)' :
-                area.compliance >= 70 ? 'rgba(255, 152, 0, 0.1)' :
-                'rgba(244, 67, 54, 0.1)',
-              cursor: isPanMode ? 'grab' : 'help',
-              zIndex: 10
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'white',
-                padding: '0px 4px',
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                fontWeight: 'bold',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {area.title}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
+      </div>
       
-      {/* Error message if image failed to load */}
-      {!imageLoaded && !isLoading && !isProcessingImage && (
+      {/* Non-compliant area indicators */}
+      {nonCompliantAreas.map(area => (
         <Box
+          key={area.id}
           sx={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
+            top: area.y,
+            left: area.x,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            backgroundColor: 'error.main',
             display: 'flex',
-            flexDirection: 'column',
+            alignItems: 'center',
             justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#f5f5f5'
+            color: 'white',
+            fontWeight: 'bold',
+            zIndex: 5,
+            boxShadow: 2,
+            cursor: 'pointer',
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`
           }}
         >
-          <Typography variant="h6" color="error">
-            Failed to load floor plan image
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Please check that the image path is correct and the file exists
-          </Typography>
+          !
         </Box>
-      )}
-      
-      {/* Detection confidence indicator */}
-      {detectionConfidence > 0 && (
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: 16,
-            left: 16,
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            borderRadius: 1,
-            padding: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
-          <Typography variant="caption">Detection Confidence:</Typography>
-          <Typography variant="body2" fontWeight="bold">
-            {Math.round(detectionConfidence * 100)}%
-          </Typography>
-          <Box
-            sx={{
-              width: 60,
-              height: 6,
-              backgroundColor: '#e0e0e0',
-              borderRadius: 3,
-              overflow: 'hidden'
-            }}
-          >
-            <Box
-              sx={{
-                width: `${detectionConfidence * 100}%`,
-                height: '100%',
-                backgroundColor: detectionConfidence > 0.8 
-                  ? 'success.main' 
-                  : detectionConfidence > 0.6 
-                    ? 'warning.main' 
-                    : 'error.main'
-              }}
-            />
-          </Box>
-        </Box>
-      )}
+      ))}
     </Box>
   );
 };

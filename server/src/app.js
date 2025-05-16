@@ -18,6 +18,16 @@ const energyAuditRoutes = require('../routes/energyAudit');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const apiRouter = require('./routes/index'); // Import the main API router
+const roomDetectionRoutes = require('../routes/api/roomDetection'); // Import room detection routes
+
+// Import ML training routes (TypeScript routes need to be imported this way)
+let trainingRoutes;
+try {
+  trainingRoutes = require('../routes/api/training').default;
+} catch (error) {
+  console.error('Error importing training routes:', error);
+  trainingRoutes = express.Router(); // Empty router as fallback
+}
 
 // Create Express app
 const app = express();
@@ -126,6 +136,12 @@ app.post('/login', (req, res) => {
 
 // API routes
 app.use('/api', apiRouter); // Use the main API router for all /api routes
+
+// Register ML training routes
+app.use('/api/training', trainingRoutes);
+
+// Register room detection routes
+app.use('/api/room-detection', roomDetectionRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
