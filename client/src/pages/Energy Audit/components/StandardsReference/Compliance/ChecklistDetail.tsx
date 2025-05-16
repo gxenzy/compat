@@ -56,7 +56,7 @@ import {
   AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 
 // Types
 interface CheckStatusCounts {
@@ -121,7 +121,7 @@ interface CheckFilterState {
 const ChecklistDetail: React.FC = () => {
   const theme = useTheme();
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const history = useHistory();
   
   // State
   const [checklist, setChecklist] = useState<ComplianceChecklist | null>(null);
@@ -352,7 +352,7 @@ const ChecklistDetail: React.FC = () => {
   };
   
   const handleBackToChecklists = () => {
-    navigate('/energy-audit/standards-reference/compliance'); // Adjust this path as needed
+    history.push('/energy-audit/standards-reference/compliance'); // Adjust this path as needed
   };
   
   // Pagination

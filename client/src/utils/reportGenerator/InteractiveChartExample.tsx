@@ -252,7 +252,7 @@ const InteractiveChartExample: React.FC = () => {
                   <strong>Accessibility features are enabled.</strong> Try using keyboard navigation:
                   <ul>
                     <li>Tab to the chart</li>
-                    <li>Use arrow keys to navigate data points</li>
+                    <li>Use arrow keys to history.push data points</li>
                     <li>Press Enter to view details</li>
                     <li>Press Escape to hide details</li>
                   </ul>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -36,11 +36,11 @@ import {
 } from '@mui/icons-material';
 
 const EnergyAuditDashboard: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
 
   // Navigate to different sections of the energy audit system
   const navigateTo = (path: string) => {
-    navigate(path);
+    history.push(path);
   };
 
   // Main feature cards for the dashboard

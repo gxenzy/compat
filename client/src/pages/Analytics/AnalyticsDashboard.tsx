@@ -165,10 +165,20 @@ const AnalyticsDashboard: React.FC = () => {
         <Paper sx={glassCardSx({ blur: 12, accent: '#1976d2' })}>
           <Grid container spacing={2} alignItems="center">
             <Grid item>
-              <DatePicker label="Start Date" value={startDate} onChange={setStartDate} renderInput={(params) => <TextField {...params} size="small" />} />
+              <DatePicker 
+                label="Start Date" 
+                value={startDate} 
+                onChange={setStartDate} 
+                slotProps={{ textField: params => ({ ...params, size: 'small' }) }} 
+              />
             </Grid>
             <Grid item>
-              <DatePicker label="End Date" value={endDate} onChange={setEndDate} renderInput={(params) => <TextField {...params} size="small" />} />
+              <DatePicker 
+                label="End Date" 
+                value={endDate} 
+                onChange={setEndDate} 
+                slotProps={{ textField: params => ({ ...params, size: 'small' }) }} 
+              />
             </Grid>
             <Grid item>
               <TextField select label="User Role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} size="small" sx={{ minWidth: 120 }}>

@@ -115,7 +115,7 @@ const LoadItemInfoDialog: React.FC<LoadItemInfoDialogProps> = ({ open, onClose, 
                     Demand Factor
                   </Typography>
                   <Typography variant="body1">
-                    {loadItem.demandFactor.toFixed(2)}
+                    {typeof loadItem.demandFactor === 'number' ? loadItem.demandFactor.toFixed(2) : 'N/A'}
                   </Typography>
                 </Grid>
                 
@@ -124,7 +124,7 @@ const LoadItemInfoDialog: React.FC<LoadItemInfoDialogProps> = ({ open, onClose, 
                     Connected Load
                   </Typography>
                   <Typography variant="body1">
-                    {loadItem.connectedLoad.toFixed(1)} W
+                    {typeof loadItem.connectedLoad === 'number' ? loadItem.connectedLoad.toFixed(1) : 'N/A'} W
                   </Typography>
                 </Grid>
                 
@@ -133,7 +133,7 @@ const LoadItemInfoDialog: React.FC<LoadItemInfoDialogProps> = ({ open, onClose, 
                     Demand Load
                   </Typography>
                   <Typography variant="body1">
-                    {loadItem.demandLoad.toFixed(1)} W
+                    {typeof loadItem.demandLoad === 'number' ? loadItem.demandLoad.toFixed(1) : 'N/A'} W
                   </Typography>
                 </Grid>
                 
@@ -213,7 +213,7 @@ const LoadItemInfoDialog: React.FC<LoadItemInfoDialogProps> = ({ open, onClose, 
                       Voltage Drop
                     </Typography>
                     <Typography variant="body1">
-                      {loadItem.voltageDropPercent.toFixed(2)}%
+                      {typeof loadItem.voltageDropPercent === 'number' ? loadItem.voltageDropPercent.toFixed(2) : 'N/A'}%
                     </Typography>
                   </Grid>
                 )}

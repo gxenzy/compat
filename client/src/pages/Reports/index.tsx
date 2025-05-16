@@ -14,7 +14,7 @@ import {
   useTheme
 } from '@mui/material';
 import { Add as AddIcon, FileCopy as TemplateIcon, Share as ShareIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { ReportList } from '../../components/ReportManagement';
 import PageHeader from '../../components/PageHeader';
 
@@ -22,7 +22,7 @@ import PageHeader from '../../components/PageHeader';
  * Reports page component
  */
 const Reports: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   
@@ -31,7 +31,7 @@ const Reports: React.FC = () => {
   };
   
   const handleCreateReport = () => {
-    navigate('/reports/create');
+    history.push('/reports/create');
   };
   
   return (
@@ -76,8 +76,8 @@ const Reports: React.FC = () => {
               reportsType="owned" 
               showActions={true} 
               showFilters={true}
-              onEditReport={(report) => navigate(`/reports/edit/${report.id}`)}
-              onViewReport={(report) => navigate(`/reports/view/${report.id}`)}
+              onEditReport={(report) => history.push(`/reports/edit/${report.id}`)}
+              onViewReport={(report) => history.push(`/reports/view/${report.id}`)}
               onCreateReport={handleCreateReport}
             />
           </TabPanel>
@@ -87,8 +87,8 @@ const Reports: React.FC = () => {
               reportsType="shared" 
               showActions={true} 
               showFilters={true}
-              onEditReport={(report) => navigate(`/reports/edit/${report.id}`)}
-              onViewReport={(report) => navigate(`/reports/view/${report.id}`)}
+              onEditReport={(report) => history.push(`/reports/edit/${report.id}`)}
+              onViewReport={(report) => history.push(`/reports/view/${report.id}`)}
             />
           </TabPanel>
           
@@ -97,8 +97,8 @@ const Reports: React.FC = () => {
               reportsType="templates" 
               showActions={true} 
               showFilters={true}
-              onEditReport={(report) => navigate(`/reports/edit/${report.id}`)}
-              onViewReport={(report) => navigate(`/reports/view/${report.id}`)}
+              onEditReport={(report) => history.push(`/reports/edit/${report.id}`)}
+              onViewReport={(report) => history.push(`/reports/view/${report.id}`)}
             />
           </TabPanel>
         </Box>

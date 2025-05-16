@@ -1,8 +1,8 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Switch, Route, Redirect, useLocation } from 'react-router-dom';
 import { CircularProgress, Box, Typography } from '@mui/material';
 import MainLayout from '../layouts/MainLayout';
-import Dashboard from '../pages/Dashboard';
+import EnergyAuditDashboard from '../pages/Energy Audit/Dashboard';
 import ElectricalSystem from '../pages/ElectricalSystem';
 import Login from '../pages/Login';
 import Profile from '../pages/Profile';
@@ -31,7 +31,8 @@ import ScreenReaderTestingGuide from '../components/UI/ScreenReaderTestingGuide'
 import ChartAccessibilityTestStats from '../components/UI/ChartAccessibilityTestStats';
 import AccessibilityTestingDashboard from '../components/UI/AccessibilityTestingDashboard';
 import ChartAccessibilityRoadmap from '../components/UI/ChartAccessibilityRoadmap';
-import EnergyAuditDashboard from '../pages/Energy Audit/Dashboard';
+import { useTheme } from '@mui/material/styles';
+import { ChartConfiguration } from 'chart.js';
 
 // Report Management Components
 import { ReportList, ReportView, ReportEditor, ReportShare } from '../components/ReportManagement';
@@ -41,22 +42,72 @@ import Reports from '../pages/Reports';
 const LoginPage = lazy(() => import('../pages/Login'));
 const NotFoundPage = lazy(() => import('../pages/NotFound'));
 
+// Define a default chart configuration for the AccessibilityTester
+const defaultChartConfig: ChartConfiguration = {
+  type: 'bar' as const,
+  data: {
+    labels: ['January', 'February', 'March', 'April', 'May', 'June'],
+    datasets: [{
+      label: 'Energy Consumption',
+      data: [65, 59, 80, 81, 56, 55],
+      backgroundColor: [
+        'rgba(75, 192, 192, 0.2)',
+        'rgba(54, 162, 235, 0.2)',
+        'rgba(255, 206, 86, 0.2)',
+        'rgba(75, 192, 192, 0.2)',
+        'rgba(153, 102, 255, 0.2)',
+        'rgba(255, 159, 64, 0.2)'
+      ],
+      borderColor: [
+        'rgba(75, 192, 192, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)'
+      ],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  }
+};
+
 // Protected route component
 const ProtectedRoute: React.FC<{ 
-  element: React.ReactNode; 
+  component: React.ComponentType<any>;
   requiredRole?: UserRole;
-}> = ({ element, requiredRole }) => {
+  path: string;
+  exact?: boolean;
+}> = ({ component: Component, requiredRole, ...rest }) => {
   const { isAuthenticated, user } = useAuthContext();
   
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <>{element}</>;
+  return (
+    <Route
+      {...rest}
+      render={props => {
+        if (!isAuthenticated) {
+          return <Redirect to="/login" />;
+        }
+        
+        if (requiredRole && user?.role !== requiredRole) {
+          return <Redirect to="/dashboard" />;
+        }
+        
+        return <Component {...props} />;
+      }}
+    />
+  );
+};
+
+// MainLayout wrapper component
+const MainLayoutWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <MainLayout>{children}</MainLayout>;
 };
 
 // Loading component for Suspense
@@ -67,441 +118,290 @@ const LoadingFallback = () => (
 );
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated } = useAuthContext();
+  // Using direct token check for authentication instead of AuthContext
+  const isTokenAuthenticated = !!localStorage.getItem('token');
+  const location = useLocation();
   
   return (
     <Suspense fallback={<LoadingFallback />}>
-    <Routes>
-      {/* Public routes */}
-      <Route 
-        path="/login" 
-        element={
-          isAuthenticated ? 
-          <Navigate to="/dashboard" replace /> : 
-          <PageTransition variant="fade">
+      <Switch>
+        {/* Public routes */}
+        <Route 
+          path="/login" 
+          render={() => 
+            isTokenAuthenticated ? 
+            <Redirect to="/dashboard" /> : 
+            <PageTransition variant="fade">
               <LoginPage />
-          </PageTransition>
-        } 
-      />
-      
-      {/* Protected routes with MainLayout */}
-      <Route 
-        element={
-          <ProtectedRoute 
-            element={<MainLayout />}
-          />
-        }
-      >
-        <Route 
-          path="/" 
-          element={
-            <PageTransition variant="fade">
-              <EnergyAuditDashboard />
             </PageTransition>
           } 
         />
         
-        <Route 
-          path="/dashboard" 
-          element={
-            <PageTransition variant="fade">
-              <EnergyAuditDashboard />
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/energy-audit/*" 
-          element={
-            <PageTransition variant="slide">
-              <EnergyAuditV2Router />
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/energy-audit-v2/*" 
-          element={
-            <Navigate to="/energy-audit" replace />
-          } 
-        />
-        
-        <Route 
-          path="/electrical-system" 
-          element={
-            <PageTransition variant="slide">
-              <ElectricalSystem />
-            </PageTransition>
-          } 
-        />
-        
-        {/* Standards Reference Route - Redirect to Energy Audit */}
-        <Route 
-          path="/standards" 
-          element={
-            <Navigate to="/energy-audit/standards-reference" replace />
-          } 
-        />
-        
-        {/* Report Management Routes */}
-        <Route 
-          path="/reports" 
-          element={
-            <Navigate to="/energy-audit/reports" replace />
-          } 
-        />
-        
-        <Route 
-          path="/reports/view/:id" 
-          element={
-            <PageTransition variant="slide">
-              <Box sx={{ p: 3 }}>
-                <ReportView />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/reports/edit/:id" 
-          element={
-            <PageTransition variant="slide">
-              <Box sx={{ p: 3 }}>
-                <ReportEditor />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/reports/create" 
-          element={
-            <PageTransition variant="slide">
-              <Box sx={{ p: 3 }}>
-                <ReportEditor />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/reports/share/:id" 
-          element={
-            <PageTransition variant="slide">
-              <Box sx={{ p: 3 }}>
-                <ReportShare />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/reports/templates" 
-          element={
-            <PageTransition variant="fade">
-              <Box sx={{ p: 3 }}>
-                <ReportList reportsType="templates" />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/reports/shared" 
-          element={
-            <PageTransition variant="fade">
-              <Box sx={{ p: 3 }}>
-                <ReportList reportsType="shared" />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/profile" 
-          element={
-            <PageTransition variant="scale">
-              <Profile />
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/settings" 
-          element={
-            <PageTransition variant="scale">
-              <Settings />
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add System Settings route */}
-        <Route 
-          path="/settings/system" 
-          element={
-            <PageTransition variant="scale">
-              <SystemSettingsPage />
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility chart example */}
-        <Route 
-          path="/settings/accessibility/chart-examples" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <AccessibilityChartExample />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for color blindness simulation */}
-        <Route 
-          path="/settings/accessibility/color-blindness" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Color Blindness Simulation
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  This tool demonstrates how colors appear to people with different types of color vision deficiency.
-                  Use the accessibility settings panel to change the simulation type.
-                </Typography>
-                <ColorBlindnessDemo variant="full" />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for enhanced pattern fills demo */}
-        <Route 
-          path="/settings/accessibility/pattern-fills" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <EnhancedPatternDemo />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for screen reader accessibility demo */}
-        <Route 
-          path="/settings/accessibility/screen-reader" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <ScreenReaderAccessibilityDemo />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility testing tools */}
-        <Route 
-          path="/settings/accessibility/testing" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Testing Tools
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  These tools help test components for WCAG 2.1 AA compliance.
-                </Typography>
-                <ChartTypeSelector />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for comprehensive chart accessibility test suite */}
-        <Route 
-          path="/settings/accessibility/test-suite" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Chart Accessibility Test Suite
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Advanced testing suite for comprehensive chart accessibility evaluation.
-                </Typography>
-                <ChartAccessibilityTestSuite />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility test recorder */}
-        <Route 
-          path="/settings/accessibility/test-recorder" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Test Recorder
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Record and analyze accessibility test results.
-                </Typography>
-                <ChartAccessibilityTestRecorder />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility test reports */}
-        <Route 
-          path="/settings/accessibility/test-reports" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Test Reports
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  View and manage saved accessibility test reports.
-                </Typography>
-                <ChartAccessibilityTestReports />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for screen reader testing guide */}
-        <Route 
-          path="/settings/accessibility/testing-guide" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Screen Reader Testing Guide
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Step-by-step guides for testing charts with screen readers and keyboard navigation.
-                </Typography>
-                <ScreenReaderTestingGuide />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility test statistics */}
-        <Route 
-          path="/settings/accessibility/test-stats" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Test Analytics
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Analytics and statistics for accessibility testing results.
-                </Typography>
-                <ChartAccessibilityTestStats />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility testing dashboard */}
-        <Route 
-          path="/settings/accessibility/dashboard" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Testing Dashboard
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Central hub for chart accessibility testing tools and progress tracking.
-                </Typography>
-                <AccessibilityTestingDashboard />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        {/* Add route for accessibility testing roadmap */}
-        <Route 
-          path="/settings/accessibility/roadmap" 
-          element={
-            <PageTransition variant="scale">
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h4" gutterBottom>
-                  Accessibility Testing Roadmap
-                </Typography>
-                <Typography variant="body1" paragraph>
-                  Step-by-step guide for comprehensive chart accessibility testing.
-                </Typography>
-                <ChartAccessibilityRoadmap />
-              </Box>
-            </PageTransition>
-          } 
-        />
-        
-        <Route 
-          path="/user-management" 
-          element={
-            <PageTransition variant="scale">
-              <UserManagement />
-            </PageTransition>
-          }
-        />
-        
-        {/* Admin routes */}
-        <Route 
-          path="/admin/standards-management" 
-          element={
-            <ProtectedRoute 
-              element={
-                <PageTransition variant="scale">
-                  <StandardsManagement />
-                </PageTransition>
-              }
-              requiredRole={UserRole.ADMIN}
-            />
-          }
-        />
-        
-        {/* Standards Reference Route */}
-        <Route 
-          path="/standards" 
-          element={
-            <Navigate to="/energy-audit/standards-reference" replace />
-          } 
-        />
-        
-        {/* Add a route for the SavedCalculations page */}
-        <Route 
-          path="/energy-audit/saved-calculations" 
-          element={
+        {/* Protected routes with MainLayout */}
+        <Route path="/" render={props => (
+          isTokenAuthenticated ? (
             <MainLayout>
-              <Box sx={{ pt: 2, pb: 5, px: { xs: 2, md: 5 } }}>
-                <Typography variant="h4" component="h1" gutterBottom>
-                  Saved Calculations
-                </Typography>
-                <SavedCalculationsViewer />
-              </Box>
+              <Switch location={location} key={location.pathname}>
+                <Route 
+                  exact 
+                  path="/" 
+                  render={() => (
+                    <PageTransition variant="fade" key="home">
+                      <EnergyAuditDashboard />
+                    </PageTransition>
+                  )} 
+                />
+                
+                <Route 
+                  exact
+                  path="/dashboard" 
+                  render={() => (
+                    <PageTransition variant="fade" key="dashboard">
+                      <EnergyAuditDashboard />
+                    </PageTransition>
+                  )} 
+                />
+                
+                <Route 
+                  path="/energy-audit" 
+                  render={() => (
+                    <PageTransition variant="slide" key="energy-audit">
+                      <EnergyAuditV2Router />
+                    </PageTransition>
+                  )} 
+                />
+                
+                <Route 
+                  path="/energy-audit-v2" 
+                  render={() => <Redirect to="/energy-audit" />} 
+                />
+                
+                <Route 
+                  exact
+                  path="/electrical-system" 
+                  render={() => (
+                    <PageTransition variant="slide" key="electrical-system">
+                      <ElectricalSystem />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Standards Reference Route - Redirect to Energy Audit */}
+                <Route 
+                  exact
+                  path="/standards" 
+                  render={() => <Redirect to="/energy-audit/standards-reference" />} 
+                />
+                
+                {/* Report Management Routes */}
+                <Route 
+                  exact
+                  path="/reports" 
+                  render={() => <Redirect to="/energy-audit/reports" />}
+                />
+                
+                {/* User Management Route */}
+                <Route 
+                  path="/user-management" 
+                  render={() => (
+                    <PageTransition variant="slide" key="user-management">
+                      <UserManagement />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Profile Route */}
+                <Route 
+                  exact
+                  path="/profile" 
+                  render={() => (
+                    <PageTransition variant="fade" key="profile">
+                      <Profile />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Settings Route */}
+                <Route 
+                  exact
+                  path="/settings" 
+                  render={() => (
+                    <PageTransition variant="fade" key="settings">
+                      <Settings />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Add System Settings route */}
+                <Route 
+                  path="/settings/system" 
+                  render={() => (
+                    <PageTransition variant="scale" key="system-settings">
+                      <SystemSettingsPage />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Standards Management Route */}
+                <Route 
+                  path="/admin/standards-management" 
+                  render={() => (
+                    <PageTransition variant="scale" key="standards-management">
+                      <StandardsManagement />
+                    </PageTransition>
+                  )} 
+                />
+                
+                {/* Add route for accessibility chart example */}
+                <Route 
+                  path="/accessibility/example"
+                  render={() => (
+                    <PageTransition variant="scale" key="accessibility-example">
+                      <Box sx={{ p: 3 }}>
+                        <AccessibilityChartExample />
+                      </Box>
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Add route for accessibility tester */}
+                <Route 
+                  path="/accessibility/tester"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <AccessibilityTester 
+                        title="Chart Accessibility Tester"
+                        chartConfig={defaultChartConfig}
+                        themeName="energy" 
+                      />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Chart Type Selector route */}
+                <Route 
+                  path="/accessibility/chart-types"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartTypeSelector />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Color Blindness Demo route */}
+                <Route 
+                  path="/accessibility/color-blindness"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ColorBlindnessDemo />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Pattern Demo route */}
+                <Route 
+                  path="/accessibility/patterns"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <EnhancedPatternDemo />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Screen Reader Demo route */}
+                <Route 
+                  path="/accessibility/screen-reader"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ScreenReaderAccessibilityDemo />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Test Suite route */}
+                <Route 
+                  path="/accessibility/test-suite"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartAccessibilityTestSuite />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Test Recorder route */}
+                <Route 
+                  path="/accessibility/test-recorder"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartAccessibilityTestRecorder />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Test Reports route */}
+                <Route 
+                  path="/accessibility/test-reports"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartAccessibilityTestReports />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Screen Reader Guide route */}
+                <Route 
+                  path="/accessibility/screen-reader-guide"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ScreenReaderTestingGuide />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Test Stats route */}
+                <Route 
+                  path="/accessibility/test-stats"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartAccessibilityTestStats />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* AccessibilityTestingDashboard route */}
+                <Route 
+                  path="/accessibility/dashboard"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <AccessibilityTestingDashboard />
+                    </PageTransition>
+                  )}
+                />
+                
+                {/* Accessibility Roadmap route */}
+                <Route 
+                  path="/accessibility/roadmap"
+                  render={() => (
+                    <PageTransition variant="scale">
+                      <ChartAccessibilityRoadmap />
+                    </PageTransition>
+                  )}
+                />
+
+                {/* Not Found route - catch all other routes */}
+                <Route 
+                  path="*" 
+                  render={() => (
+                    <PageTransition variant="fade">
+                      <NotFoundPage />
+                    </PageTransition>
+                  )} 
+                />
+              </Switch>
             </MainLayout>
-          }
-        />
-        
-        {/* 404 Not Found */}
-        <Route 
-          path="*" 
-          element={
-            <PageTransition variant="fade">
-                <NotFoundPage />
-            </PageTransition>
-          } 
-        />
-      </Route>
-    </Routes>
+          ) : <Redirect to="/login" />
+        )} />
+      </Switch>
     </Suspense>
   );
 };

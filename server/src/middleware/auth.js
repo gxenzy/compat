@@ -10,13 +10,6 @@ const authenticateToken = (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
     
     if (!token) {
-      // Allow access to public endpoints without token
-      if (req.originalUrl.includes('/api/users/10')) {
-        console.log('Public endpoint access without token:', req.originalUrl);
-        req.user = { id: 10, username: 'test_user', role: 'admin' };
-        return next();
-      }
-      
       return res.status(401).json({ message: 'Access denied. No token provided.' });
     }
     
@@ -33,14 +26,6 @@ const authenticateToken = (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth error:', error.message);
-    
-    // Special case for development - bypass authentication for specific user
-    if (req.originalUrl.includes('/api/users/10')) {
-      console.log('Development access for user 10 granted despite auth error');
-      req.user = { id: 10, username: 'test_user', role: 'admin' };
-      return next();
-    }
-    
     return res.status(401).json({ message: 'Invalid token.' });
   }
 };
@@ -82,12 +67,6 @@ const optionalAuth = (req, res, next) => {
  */
 const authorizeRole = (allowedRoles) => {
   return (req, res, next) => {
-    // Development bypass for testing
-    if (req.originalUrl.includes('/api/users/10')) {
-      console.log('Role authorization bypassed for development access');
-      return next();
-    }
-    
     if (!req.user) {
       return res.status(401).json({ message: 'Access denied. Authentication required.' });
     }

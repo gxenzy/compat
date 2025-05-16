@@ -33,7 +33,7 @@ import {
   CheckCircle as CheckIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 
 const mockReportTemplates = [
   { id: '1', name: 'Comprehensive Audit Report', description: 'Complete report with all findings, recommendations, and financial analysis' },
@@ -65,7 +65,7 @@ const ReportGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
-  const navigate = useNavigate();
+  const history = useHistory();
   const [includeOptions, setIncludeOptions] = useState({
     executiveSummary: true,
     findings: true,
@@ -106,8 +106,8 @@ const ReportGenerator: React.FC = () => {
 
   const handleEditWithBuilder = () => {
     // In a real app, you'd store the current report state and pass it to the builder
-    // Here we'll simply navigate to the builder
-    navigate('/energy-audit/audit-workflow');
+    // Here we'll simply history.push to the builder
+    history.push('/energy-audit/audit-workflow');
   };
 
   const getTemplate = (id: string) => {

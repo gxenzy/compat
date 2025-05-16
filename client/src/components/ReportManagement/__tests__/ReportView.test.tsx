@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import  BrowserRouter, Switch, Route  from 'react-router-dom';
 import { ReportView } from '../index';
 import reportService from '../../../services/reportService';
 import { Report, ReportContent } from '../../../types/reports';
@@ -93,9 +93,9 @@ const mockReport: Report = {
 const renderWithRouter = (id: string = '1') => {
   return render(
     <BrowserRouter>
-      <Routes>
-        <Route path="*" element={<ReportView />} />
-      </Routes>
+      <Switch>
+        <Route path="*" component={() => <ReportView />} />
+      </Switch>
     </BrowserRouter>
   );
 };

@@ -36,6 +36,7 @@ interface FloorPlanWrapperProps {
   handleMeasurementStart: (e: React.MouseEvent) => void;
   handleMeasurementMove: (e: React.MouseEvent) => void;
   handleMeasurementEnd: (e: React.MouseEvent) => void;
+  viewOrientation: 'landscape' | 'portrait';
 }
 
 /**
@@ -45,6 +46,9 @@ interface FloorPlanWrapperProps {
  * between different interface implementations and avoid type errors.
  */
 const FloorPlanWrapper: React.FC<FloorPlanWrapperProps> = (props) => {
+  console.log('FloorPlanWrapper rendering with image:', props.floorPlanImage);
+  console.log('FloorPlanWrapper view orientation:', props.viewOrientation);
+  
   return (
     <FloorPlanVisualization
       floorPlanImage={props.floorPlanImage}
@@ -80,6 +84,7 @@ const FloorPlanWrapper: React.FC<FloorPlanWrapperProps> = (props) => {
       handleMeasurementStart={props.handleMeasurementStart}
       handleMeasurementMove={props.handleMeasurementMove}
       handleMeasurementEnd={props.handleMeasurementEnd}
+      viewOrientation={props.viewOrientation}
     />
   );
 };

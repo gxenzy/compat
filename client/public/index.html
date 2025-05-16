@@ -22,6 +22,39 @@
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
     />
     <title>Compliance Audit Tool</title>
+    
+    <!-- Emergency authentication check -->
+    <script>
+      (function() {
+        // Check if we're on login page but already have token
+        if (window.location.hash === "#/login" && localStorage.getItem('token')) {
+          console.log("🔐 TOKEN FOUND: Redirecting to dashboard...");
+          window.location.hash = "#/dashboard";
+        }
+      })();
+    </script>
+    <!-- Fix for form submissions and direct URL access with HashRouter -->
+    <script>
+      // Handle form submission issues by ensuring proper navigation
+      document.addEventListener('DOMContentLoaded', function() {
+        // Force all forms to use JavaScript for submission
+        document.querySelectorAll('form').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            // Always prevent default form submission
+            e.preventDefault();
+            console.log("Form submission intercepted and prevented");
+            // The React handlers will take care of processing the form
+          });
+        });
+
+        // Handle any direct URL access issues
+        if (!window.location.hash && window.location.pathname !== '/') {
+          // Redirect to the HashRouter format
+          const path = window.location.pathname;
+          window.location.href = '/#' + path;
+        }
+      });
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

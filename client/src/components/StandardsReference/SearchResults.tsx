@@ -16,7 +16,7 @@ import {
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import SectionIcon from '@mui/icons-material/Article';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 
 // Define interface for search result
 interface SearchResult {
@@ -62,7 +62,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   onBookmarkToggle,
   onViewSection,
 }) => {
-  const navigate = useNavigate();
+  const history = useHistory();
 
   // Handle loading state
   if (loading) {

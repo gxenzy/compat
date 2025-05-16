@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useHistory } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -28,7 +29,6 @@ import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEnergyAudit } from '../../contexts/EnergyAuditContext';
 import {
@@ -161,7 +161,7 @@ const AuditStatusChip: React.FC<AuditStatusChipProps> = ({ status }) => {
 };
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
   const { currentUser } = useAuthContext();
   const { audits, findings, metrics } = useEnergyAudit();
   const [activeTab, setActiveTab] = useState(0);
@@ -278,7 +278,7 @@ const Dashboard: React.FC = () => {
             icon={<Assessment />}
             color={theme.palette.primary.main}
             trend="+5% this month"
-            onClick={() => navigate('/energy-audit')}
+            onClick={() => history.push('/energy-audit')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -295,7 +295,7 @@ const Dashboard: React.FC = () => {
             value={dashboardData.criticalFindings}
             icon={<Warning />}
             color={theme.palette.error.main}
-            onClick={() => navigate('/energy-audit?filter=critical')}
+            onClick={() => history.push('/energy-audit?filter=critical')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>

@@ -32,7 +32,7 @@ import {
   School as SchoolIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
-import standardsService from '../../services/StandardsService';
+import enhancedStandardsService from '../../services/EnhancedStandardsService';
 import TagManagement from './TagManagement';
 
 interface SectionData {
@@ -147,8 +147,8 @@ const SectionViewer: React.FC<SectionViewerProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await standardsService.getSectionById(id);
-      setSection(data);
+      const data = await enhancedStandardsService.getSectionById(id);
+      setSection(data as SectionData);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching section:', error);

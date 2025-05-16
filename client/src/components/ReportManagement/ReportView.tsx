@@ -20,7 +20,7 @@ import {
   Download as DownloadIcon,
   ArrowBack as BackIcon
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import Chart from 'chart.js/auto';
 import { ChartTypeRegistry } from 'chart.js';
 import { 
@@ -93,7 +93,7 @@ const chartCache: ChartCache = {};
  */
 const ReportView: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const history = useHistory();
   const { id } = useParams<{ id: string }>();
   
   // Report state
@@ -143,14 +143,14 @@ const ReportView: React.FC = () => {
   // Handle edit report
   const handleEditReport = () => {
     if (report) {
-      navigate(`/reports/edit/${report.id}`);
+      history.push(`/reports/edit/${report.id}`);
     }
   };
   
   // Handle share report
   const handleShareReport = () => {
     if (report) {
-      navigate(`/reports/share/${report.id}`);
+      history.push(`/reports/share/${report.id}`);
     }
   };
   
@@ -193,7 +193,7 @@ const ReportView: React.FC = () => {
   
   // Handle back to reports list
   const handleBackToList = () => {
-    navigate('/reports');
+    history.push('/reports');
   };
   
   // Render content based on content type

@@ -47,12 +47,14 @@ import {
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { useEmergencyMode } from '../../contexts/EmergencyModeContext';
 import { UserRole, SystemSettings as ImportedSystemSettings, AuditLog as AuditLogType, BackupEntry as BackupEntryType } from '../../types/index';
 import * as adminService from '../../services/adminService';
+import * as auditService from '../../services/auditService';
+import PageHeader from '../../components/PageHeader';
+import MainLayout from '../../layouts/MainLayout';
 
 // Define a local interface that extends the imported one with required properties
-interface SystemSettings extends ImportedSystemSettings {
+interface SystemSettings extends Omit<ImportedSystemSettings, 'emergencyMode'> {
   maxUsers: number;  // Make this required instead of optional
   backupFrequency: number;
   emailNotifications: boolean;
@@ -69,15 +71,13 @@ interface SystemSettings extends ImportedSystemSettings {
   };
   maxLoginAttempts: number;
   maintenanceMode: boolean;
-  emergencyMode: boolean;
 }
 
 type AuditLog = AuditLogType;
 type BackupEntry = BackupEntryType;
 
 const AdminSettings: React.FC = () => {
-  const { user, hasRole } = useAuthContext();
-  const { isEmergencyMode, setEmergencyMode } = useEmergencyMode();
+  const { user } = useAuthContext();
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: 'Energy Audit System',
     maxUsers: 100,
@@ -85,7 +85,6 @@ const AdminSettings: React.FC = () => {
     backupFrequency: 24,
     emailNotifications: true,
     maintenanceMode: false,
-    emergencyMode: false,
     debugMode: false,
     apiUrl: 'http://localhost:8000',
     allowRegistration: false,
@@ -138,6 +137,11 @@ const AdminSettings: React.FC = () => {
     severity: 'success' | 'error' | 'info' | 'warning'
   }>({ open: false, message: '', severity: 'success' });
 
+  // Helper function to check admin role
+  const hasRole = (role: UserRole): boolean => {
+    return user?.role === role;
+  };
+
   useEffect(() => {
     if (!hasRole(UserRole.ADMIN)) {
       setError('Access denied. Admins only.');
@@ -150,15 +154,12 @@ const AdminSettings: React.FC = () => {
       try {
         setLoading(true);
         const systemSettings = await adminService.getSystemSettings();
+        
+        // Handle data safely without assuming emergencyMode exists
         setSettings(prevSettings => ({
           ...prevSettings,
           ...systemSettings
         }));
-        
-        // Synchronize emergency mode with context
-        if (systemSettings.emergencyMode !== undefined) {
-          setEmergencyMode(systemSettings.emergencyMode);
-        }
       } catch (err: any) {
         console.error('Failed to load settings:', err);
         setError('Failed to load settings: ' + (err.message || 'Unknown error'));
@@ -169,14 +170,6 @@ const AdminSettings: React.FC = () => {
     
     loadSettings();
   }, [user]);
-
-  // Update initial settings with current emergency mode
-  useEffect(() => {
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      emergencyMode: isEmergencyMode
-    }));
-  }, [isEmergencyMode]);
 
   // Load audit logs
   useEffect(() => {
@@ -281,9 +274,6 @@ const AdminSettings: React.FC = () => {
       try {
         setLoading(true);
         await adminService.updateSystemSettings(settings);
-        
-        // Update emergency mode in context to ensure it's synchronized
-        setEmergencyMode(settings.emergencyMode);
         
         showSnackbar('Settings saved successfully', 'success');
         setSaveSuccess(true);
@@ -607,25 +597,6 @@ const AdminSettings: React.FC = () => {
                         />
                       }
                       label="Maintenance Mode"
-                    />
-                  </ListItem>
-                  <Divider />
-                  <ListItem>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={settings.emergencyMode}
-                          onChange={(e) => {
-                            handleSettingChange('emergencyMode', e.target.checked);
-                            setEmergencyMode(e.target.checked);
-                          }}
-                        />
-                      }
-                      label="Emergency Mode"
-                    />
-                    <ListItemText
-                      secondary="Enables offline operation with degraded functionality for critical system outages"
-                      sx={{ ml: 2 }}
                     />
                   </ListItem>
                   <Divider />

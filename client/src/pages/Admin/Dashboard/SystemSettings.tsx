@@ -22,15 +22,12 @@ import { Save as SaveIcon } from '@mui/icons-material';
 import type { SystemSettings } from '../../../types';
 import { UserRole } from '../../../types';
 import * as adminService from '../../../services/adminService';
-import { useEmergencyMode } from '../../../contexts/EmergencyModeContext';
 import { SelectChangeEvent } from '@mui/material';
 
 const SystemSettingsPage: React.FC = () => {
-  const { isEmergencyMode, setEmergencyMode } = useEmergencyMode();
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: '',
     maintenanceMode: false,
-    emergencyMode: isEmergencyMode,
     registrationEnabled: true,
     allowRegistration: true,
     defaultRole: UserRole.VIEWER,
@@ -53,25 +50,17 @@ const SystemSettingsPage: React.FC = () => {
     loadSettings();
   }, []);
 
-  // Update settings when emergency mode changes in context
-  useEffect(() => {
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      emergencyMode: isEmergencyMode
-    }));
-  }, [isEmergencyMode]);
-
   const loadSettings = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await adminService.getSystemSettings();
-      setSettings(data);
       
-      // Synchronize emergency mode with context
-      if (data.emergencyMode !== undefined) {
-        setEmergencyMode(data.emergencyMode);
-      }
+      // Ensure we're correctly handling the response
+      const cleanedData = { ...data };
+      
+      // Set the settings state with the cleaned data
+      setSettings(cleanedData);
     } catch (error: any) {
       console.error('Error loading settings:', error);
       setError('Failed to load system settings: ' + (error.message || 'Unknown error'));
@@ -121,9 +110,6 @@ const SystemSettingsPage: React.FC = () => {
       setSuccess(null);
       
       await adminService.updateSystemSettings(settings);
-      
-      // Update emergency mode in context to ensure it's synchronized
-      setEmergencyMode(settings.emergencyMode);
       
       setSuccess('Settings updated successfully');
     } catch (error: any) {
@@ -186,23 +172,6 @@ const SystemSettingsPage: React.FC = () => {
                   }
                   label="Maintenance Mode"
                 />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={settings.emergencyMode}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        handleInputChange(e);
-                        setEmergencyMode(checked);
-                      }}
-                      name="emergencyMode"
-                    />
-                  }
-                  label="Emergency Mode"
-                />
-                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                  Enables fallback operation during API outages
-                </Typography>
                 <FormControlLabel
                   control={
                     <Switch

@@ -28,6 +28,7 @@ import {
   Home as HomeIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { STANDARDS_API, apiClient } from '../../../../utils/apiConfig';
 
 interface Standard {
   id: number;
@@ -107,7 +108,7 @@ const StandardsBrowser: React.FC<{
   const fetchStandards = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/standards-api/standards');
+      const response = await apiClient.get(STANDARDS_API.STANDARDS);
       setStandards(response.data);
       setLoading(false);
     } catch (error) {
@@ -120,8 +121,8 @@ const StandardsBrowser: React.FC<{
   const fetchSections = async (standardId: number, parentId: number | null = null) => {
     try {
       setLoading(true);
-      const url = `/api/standards-api/standards/${standardId}/sections${parentId ? `?parentId=${parentId}` : ''}`;
-      const response = await axios.get(url);
+      const url = STANDARDS_API.SECTIONS_BY_STANDARD(standardId, parentId || undefined);
+      const response = await apiClient.get(url);
       setSections(response.data);
       setLoading(false);
     } catch (error) {
@@ -133,7 +134,7 @@ const StandardsBrowser: React.FC<{
   // Search sections
   const searchSections = async (query: string) => {
     try {
-      const response = await axios.get(`/api/standards-api/sections/search?q=${query}`);
+      const response = await apiClient.get(STANDARDS_API.SEARCH_SECTIONS(query));
       setSearchResults(response.data);
       setIsSearching(false);
     } catch (error) {

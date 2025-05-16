@@ -1,14 +1,12 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import AppRoutes from './routes/index';
 import { AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useHistory } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { CircularProgress, Box, Typography, Button } from '@mui/material';
 import { EnergyAuditProvider } from './contexts/EnergyAuditContext';
 import { AccessibilitySettingsProvider } from './contexts/AccessibilitySettingsContext';
 import ChartAccessibilityProvider from './utils/reportGenerator/ChartAccessibilityProvider';
-import { EmergencyModeProvider, useEmergencyMode } from './contexts/EmergencyModeContext';
-import EmergencyDbUpdateBanner from './components/UI/EmergencyDbUpdateBanner';
 import { Toaster } from 'react-hot-toast';
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
@@ -52,19 +50,25 @@ function LoadingFallback() {
   );
 }
 
-function AppContentWithEmergencyBanner() {
-  const { isEmergencyMode } = useEmergencyMode();
-  
-  return (
-    <>
-      {isEmergencyMode && <EmergencyDbUpdateBanner />}
-      <AppRoutes />
-    </>
-  );
-}
-
 function App() {
   const location = useLocation();
+  const history = useHistory();
+  
+  // Navigation change handler
+  useEffect(() => {
+    console.log('App: Route changed to', location.pathname);
+    // Reset scroll position on navigation
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  
+  // Handle token expiration
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token && location.pathname !== '/login') {
+      console.log('App: No token found, redirecting to login');
+      history.push('/login');
+    }
+  }, [location.pathname, history]);
   
   return (
     <>
@@ -76,19 +80,17 @@ function App() {
           window.location.href = '/';
         }}
       >
-        <EmergencyModeProvider>
-          <AccessibilitySettingsProvider>
-            <ChartAccessibilityProvider>
-              <EnergyAuditProvider>
-                <Suspense fallback={<LoadingFallback />}>
-                  <AnimatePresence mode="wait">
-                    <AppContentWithEmergencyBanner key={location.pathname} />
-                  </AnimatePresence>
-                </Suspense>
-              </EnergyAuditProvider>
-            </ChartAccessibilityProvider>
-          </AccessibilitySettingsProvider>
-        </EmergencyModeProvider>
+        <AccessibilitySettingsProvider>
+          <ChartAccessibilityProvider>
+            <EnergyAuditProvider>
+              <Suspense fallback={<LoadingFallback />}>
+                <AnimatePresence mode="wait" initial={false}>
+                  <AppRoutes key={location.pathname} />
+                </AnimatePresence>
+              </Suspense>
+            </EnergyAuditProvider>
+          </ChartAccessibilityProvider>
+        </AccessibilitySettingsProvider>
       </ErrorBoundary>
     </>
   );

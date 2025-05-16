@@ -1,4 +1,4 @@
-import { NavigateFunction } from 'react-router-dom';
+import  RedirectFunction  from 'react-router-dom';
 
 // This fixes the TypeScript error with spaces in import paths
 declare module '*.tsx' {
@@ -8,7 +8,7 @@ declare module '*.tsx' {
 
 // Fix the imported declaration for notification center
 declare module '*/NotificationCenter' {
-  import { NavigateFunction } from 'react-router-dom';
+  import  RedirectFunction  from 'react-router-dom';
   
   export interface NotificationCenterProps {
     onNavigate: NavigateFunction;

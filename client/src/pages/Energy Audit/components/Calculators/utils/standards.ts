@@ -6,7 +6,7 @@
 import axios from 'axios';
 
 // API endpoint configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 const STANDARDS_ENDPOINT = `${API_BASE_URL}/standards`;
 
 // Standards data types

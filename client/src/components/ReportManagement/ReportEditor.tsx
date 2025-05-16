@@ -33,7 +33,7 @@ import {
   ArrowBack as BackIcon,
   ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import Chart from 'chart.js/auto';
 import { ChartTypeRegistry } from 'chart.js';
 import { 
@@ -589,8 +589,8 @@ const REPORT_STATUSES = [
  */
 const ReportEditor: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
+  const history = useHistory();
+  const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
   
   const [loading, setLoading] = useState<boolean>(false);
@@ -686,7 +686,7 @@ const ReportEditor: React.FC = () => {
         console.log('Saving report:', formData);
         
         // Redirect back to reports list
-        navigate('/reports');
+        history.push('/reports');
       }, 1000);
       
     } catch (err) {
@@ -697,7 +697,7 @@ const ReportEditor: React.FC = () => {
   };
   
   const handleCancel = () => {
-    navigate('/reports');
+    history.push('/reports');
   };
   
   if (loading) {

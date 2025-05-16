@@ -47,7 +47,8 @@ import {
   Archive as ArchiveIcon
 } from '@mui/icons-material';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import { API_BASE_URL, apiClient } from '../../../../../utils/apiConfig';
 
 // Types
 interface ComplianceRule {
@@ -94,7 +95,7 @@ const MenuProps = {
 
 const ComplianceChecklists: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const history = useHistory();
   
   // State
   const [checklists, setChecklists] = useState<ComplianceChecklist[]>([]);
@@ -130,7 +131,7 @@ const ComplianceChecklists: React.FC = () => {
   const fetchChecklists = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/compliance/checklists');
+      const response = await apiClient.get(`/compliance/checklists`);
       setChecklists(response.data);
       setError(null);
     } catch (err) {
@@ -143,7 +144,9 @@ const ComplianceChecklists: React.FC = () => {
   
   const fetchRules = async () => {
     try {
-      const response = await axios.get('/api/compliance/rules?active=true');
+      const response = await apiClient.get(`/compliance/rules`, {
+        params: { active: true }
+      });
       setRules(response.data);
     } catch (err) {
       console.error('Error fetching compliance rules:', err);
@@ -227,7 +230,7 @@ const ComplianceChecklists: React.FC = () => {
     
     setLoading(true);
     try {
-      await axios.post('/api/compliance/checklists', formData);
+      await apiClient.post(`/compliance/checklists`, formData);
       handleCloseDialog();
       fetchChecklists();
     } catch (err) {
@@ -244,12 +247,12 @@ const ComplianceChecklists: React.FC = () => {
   };
   
   const handleViewChecklist = (checklistId: number) => {
-    navigate(`/energy-audit/standards-reference/compliance/checklist/${checklistId}`);
+    history.push(`/energy-audit/standards-reference/compliance/checklist/${checklistId}`);
   };
   
   const handleUpdateStatus = async (checklist: ComplianceChecklist, newStatus: 'draft' | 'active' | 'archived') => {
     try {
-      await axios.put(`/api/compliance/checklists/${checklist.id}/status`, { status: newStatus });
+      await apiClient.put(`/compliance/checklists/${checklist.id}/status`, { status: newStatus });
       fetchChecklists();
     } catch (err) {
       console.error('Error updating checklist status:', err);

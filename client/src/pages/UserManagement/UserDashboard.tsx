@@ -43,14 +43,28 @@ const UserDashboard: React.FC = () => {
     
     // Real-time updates
     const socket = socketService.connect();
+    
+    // Only set up event listeners if socket connection is successful
+    if (socket) {
+      // Add event listeners
       socket.on('userUpdate', fetchUsers);
       socket.on('userDelete', fetchUsers);
 
+      // Return cleanup function that removes listeners and disconnects
       return () => {
-        socket.off('userUpdate', fetchUsers);
-        socket.off('userDelete', fetchUsers);
-      socketService.disconnect();
+        // Ensure socket still exists when cleanup runs
+        if (socket) {
+          socket.off('userUpdate', fetchUsers);
+          socket.off('userDelete', fetchUsers);
+        }
+        socketService.disconnect();
       };
+    }
+    
+    // Return a cleanup function even if we didn't connect
+    return () => {
+      socketService.disconnect();
+    };
   }, []);
 
   // Create

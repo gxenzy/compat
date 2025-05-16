@@ -44,11 +44,11 @@ const nvdaSteps: TestingStep[] = [
   },
   {
     title: 'Navigate to Chart',
-    description: 'Use Tab key to navigate to the chart component. NVDA should announce it.'
+    description: 'Use Tab key to history.push to the chart component. NVDA should announce it.'
   },
   {
     title: 'Explore Data Points',
-    description: 'Use arrow keys to navigate between data points. Listen for announcements.',
+    description: 'Use arrow keys to history.push between data points. Listen for announcements.',
     keyboardShortcuts: [
       { key: '←/→', description: 'Move between data points horizontally' },
       { key: '↑/↓', description: 'Move between data series' },
@@ -85,7 +85,7 @@ const jawsSteps: TestingStep[] = [
   },
   {
     title: 'Navigate to Chart',
-    description: 'Use Tab key to navigate to the chart component. JAWS should announce it.'
+    description: 'Use Tab key to history.push to the chart component. JAWS should announce it.'
   },
   {
     title: 'Virtual Cursor Mode',
@@ -93,7 +93,7 @@ const jawsSteps: TestingStep[] = [
   },
   {
     title: 'Explore Chart Data',
-    description: 'Use arrow keys to navigate chart data points.',
+    description: 'Use arrow keys to history.push chart data points.',
     keyboardShortcuts: [
       { key: '←/→', description: 'Navigate between data points' },
       { key: '↑/↓', description: 'Navigate between datasets' },
@@ -122,7 +122,7 @@ const voiceOverSteps: TestingStep[] = [
   },
   {
     title: 'Navigate to Chart',
-    description: 'Use VO+Tab (VO is Control+Option) to navigate to the chart.'
+    description: 'Use VO+Tab (VO is Control+Option) to history.push to the chart.'
   },
   {
     title: 'Interact with Chart',
@@ -130,7 +130,7 @@ const voiceOverSteps: TestingStep[] = [
   },
   {
     title: 'Explore Chart Data',
-    description: 'Use arrow keys to navigate chart data points.',
+    description: 'Use arrow keys to history.push chart data points.',
     keyboardShortcuts: [
       { key: '←/→', description: 'Navigate horizontally through data points' },
       { key: '↑/↓', description: 'Navigate between data series' }
@@ -154,7 +154,7 @@ const voiceOverSteps: TestingStep[] = [
 const keyboardOnlySteps: TestingStep[] = [
   {
     title: 'Navigate to Chart',
-    description: 'Use Tab key to navigate to the chart component.'
+    description: 'Use Tab key to history.push to the chart component.'
   },
   {
     title: 'Check Focus Indicator',
@@ -162,7 +162,7 @@ const keyboardOnlySteps: TestingStep[] = [
   },
   {
     title: 'Access Chart Data',
-    description: 'Use arrow keys to navigate between data points.',
+    description: 'Use arrow keys to history.push between data points.',
     keyboardShortcuts: [
       { key: '←/→', description: 'Navigate horizontally through data points' },
       { key: '↑/↓', description: 'Navigate between data series' },
@@ -291,10 +291,10 @@ const ScreenReaderTestingGuide: React.FC = () => {
           </AccordionSummary>
           <AccordionDetails>
             <Typography variant="body2" paragraph>
-              Verify that users can navigate between data points using arrow keys and that each data point is announced correctly with its value.
+              Verify that users can history.push between data points using arrow keys and that each data point is announced correctly with its value.
             </Typography>
             <Typography variant="body2">
-              <strong>Expected Behavior:</strong> Screen reader should announce data point values as you navigate. For example: "March: 65 units" or "Q1 Revenue: $10,500".
+              <strong>Expected Behavior:</strong> Screen reader should announce data point values as you history.push. For example: "March: 65 units" or "Q1 Revenue: $10,500".
             </Typography>
           </AccordionDetails>
         </Accordion>

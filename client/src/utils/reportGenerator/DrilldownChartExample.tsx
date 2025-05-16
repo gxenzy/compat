@@ -348,7 +348,7 @@ const DrilldownChartExample: React.FC = () => {
                 <strong>Instructions:</strong>
                 <ul>
                   <li>Click on chart elements to drill down</li>
-                  <li>Use breadcrumbs or up button to navigate back</li>
+                  <li>Use breadcrumbs or up button to history.push back</li>
                   <li>Home icon returns to the top level</li>
                 </ul>
               </Typography>

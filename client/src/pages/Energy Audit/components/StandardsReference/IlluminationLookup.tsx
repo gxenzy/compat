@@ -18,6 +18,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import axios from 'axios';
+import { STANDARDS_API, apiClient } from '../../../../utils/apiConfig';
 
 interface IlluminationRequirement {
   roomType: string;
@@ -46,9 +47,7 @@ const IlluminationLookup: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await axios.get('/api/lookup/illumination', {
-        params: { roomType: searchQuery }
-      });
+      const response = await apiClient.get(STANDARDS_API.ILLUMINATION(searchQuery));
       
       setResult(response.data);
     } catch (err: any) {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthContext } from '../../contexts/AuthContext';
+import { useHistory } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -12,96 +11,107 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
-  Link,
-  useTheme,
-  useMediaQuery
+  useTheme
 } from '@mui/material';
 import { Visibility, VisibilityOff, Warning } from '@mui/icons-material';
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { login, loading, error: authError, isAuthenticated } = useAuthContext();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
-  const [formError, setFormError] = useState<string | null>(null);
+  const history = useHistory();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   const isSpecialTheme = ['#082f49', '#1f2937', '#042f2e', '#0f172a'].includes(theme.palette.background.default);
   
-  // Check for redirect params in URL
+  // Check if user is already logged in
   useEffect(() => {
-    // Auto-redirect if already authenticated
-    if (isAuthenticated) {
-      navigate('/dashboard');
-      return;
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('User already has a token, redirecting to dashboard...');
+      history.push('/dashboard');
     }
-    
-    // Check if there's a 'from' param in the location state (redirect after login)
-    const from = (location.state as any)?.from?.pathname || '/dashboard';
-    
-    // Check for specific error messages in URL params
-    const params = new URLSearchParams(location.search);
-    const sessionExpired = params.get('sessionExpired');
-    const unauthorized = params.get('unauthorized');
-    
-    if (sessionExpired === 'true') {
-      setFormError('Your session has expired. Please log in again.');
-    } else if (unauthorized === 'true') {
-      setFormError('You need to log in to access that page.');
-    }
-  }, [isAuthenticated, location, navigate]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    // Clear errors when user starts typing
-    setFormError(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    // Basic validation
-    if (!formData.username.trim()) {
-      setFormError('Please enter your username');
-      return;
-    }
-    
-    if (!formData.password.trim()) {
-      setFormError('Please enter your password');
-      return;
-    }
-
-    try {
-      const success = await login(formData.username, formData.password);
-      if (success) {
-        // Get the redirect path from location state or default to dashboard
-        const from = (location.state as any)?.from?.pathname || '/dashboard';
-        navigate(from);
-      }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setFormError(
-        err.response?.data?.message || 
-        err.message || 
-        'Login failed. Please check your credentials and try again.'
-      );
-    }
-  };
-
+  }, [history]);
+  
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
-  const handleForgotPassword = () => {
-    navigate('/forgot-password');
+  // Direct login without using context
+  const handleLogin = async () => {
+    if (!username.trim()) {
+      setError('Please enter your username');
+      return;
+    }
+    
+    if (!password.trim()) {
+      setError('Please enter your password');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    console.log('Attempting direct login with:', { username });
+    
+    // Try the primary endpoint first
+    const endpoint = '/api/auth/login';
+    
+    try {
+      console.log(`Trying login endpoint: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password }),
+        // Don't include credentials to avoid CORS issues
+      });
+      
+      console.log(`Endpoint ${endpoint} responded with:`, response.status);
+      
+      // Handle specific status codes
+      if (response.status === 401) {
+        setError('Invalid username or password. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Login response:', data);
+      
+      if (data.token) {
+        // Store authentication data
+        localStorage.setItem('token', data.token);
+        
+        if (data.user) {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
+        
+        console.log('Login successful! Redirecting to dashboard...');
+        history.push('/dashboard');
+      } else {
+        throw new Error('No token received from server');
+      }
+    } catch (err: any) {
+      console.error(`Login attempt failed for ${endpoint}:`, err);
+      setError(err.message || 'Login failed. Please check your credentials and try again.');
+    }
+    
+    setLoading(false);
+  };
+
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin();
   };
 
   return (
@@ -148,17 +158,21 @@ const Login: React.FC = () => {
             Sign In
           </Typography>
 
-          {(formError || authError) && (
+          {error && (
             <Alert 
               severity="error" 
               sx={{ width: '100%', mb: 2 }}
               icon={<Warning fontSize="inherit" />}
             >
-              {formError || authError}
+              {error}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+          <Box 
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ width: '100%' }}
+          >
             <TextField
               margin="normal"
               required
@@ -168,10 +182,9 @@ const Login: React.FC = () => {
               name="username"
               autoComplete="username"
               autoFocus
-              value={formData.username}
-              onChange={handleChange}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
-              error={!!formError && formError.toLowerCase().includes('username')}
               InputProps={{
                 spellCheck: false,
               }}
@@ -204,10 +217,9 @@ const Login: React.FC = () => {
               type={showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              error={!!formError && formError.toLowerCase().includes('password')}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -242,23 +254,6 @@ const Login: React.FC = () => {
                 }
               }}
             />
-            
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-              <Link 
-                component="button"
-                variant="body2"
-                onClick={handleForgotPassword}
-                sx={{ 
-                  textDecoration: 'none',
-                  color: isSpecialTheme ? 'rgba(255, 255, 255, 0.7)' : undefined,
-                  '&:hover': {
-                    color: isSpecialTheme ? '#ffffff' : undefined
-                  }
-                }}
-              >
-                Forgot password?
-              </Link>
-            </Box>
             
             <Button
               type="submit"

@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import complianceService from '../../../../../services/complianceService';
+import { API_BASE_URL, apiClient } from '../../../../../utils/apiConfig';
 
 interface ComplianceRule {
   id: number;
@@ -165,7 +166,7 @@ const ComplianceRules: React.FC = () => {
   const fetchSections = async () => {
     try {
       try {
-        const response = await axios.get('/api/standards/sections');
+        const response = await apiClient.get(`/standards-api/standards`);
         setSections(response.data);
       } catch (apiError) {
         console.warn('API fetch failed, using mock sections data:', apiError);
@@ -310,9 +311,9 @@ const ComplianceRules: React.FC = () => {
     setLoading(true);
     try {
       if (dialogAction === 'add') {
-        await axios.post('/api/compliance/rules', formData);
+        await apiClient.post(`/compliance/rules`, formData);
       } else {
-        await axios.put(`/api/compliance/rules/${selectedRule?.id}`, formData);
+        await apiClient.put(`/compliance/rules/${selectedRule?.id}`, formData);
       }
       
       handleCloseDialog();
@@ -335,7 +336,7 @@ const ComplianceRules: React.FC = () => {
     
     setLoading(true);
     try {
-      await axios.delete(`/api/compliance/rules/${selectedRule.id}`);
+      await apiClient.delete(`/compliance/rules/${selectedRule.id}`);
       fetchRules();
     } catch (err) {
       console.error('Error deleting rule:', err);

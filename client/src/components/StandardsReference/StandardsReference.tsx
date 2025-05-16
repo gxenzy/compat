@@ -15,7 +15,7 @@ import StandardsBrowser from './StandardsBrowser';
 import SectionViewer from './SectionViewer';
 import SearchBar from './SearchBar';
 import SearchResults from './SearchResults';
-import standardsService from '../../services/StandardsService';
+import enhancedStandardsService from '../../services/EnhancedStandardsService';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 interface TabPanelProps {
@@ -59,7 +59,7 @@ const StandardsReference: React.FC = () => {
     // Load standards for search filters
     const loadStandards = async () => {
       try {
-        const standards = await standardsService.getStandards();
+        const standards = await enhancedStandardsService.getStandards();
         setStandards(standards);
       } catch (error) {
         console.error('Error loading standards:', error);
@@ -83,7 +83,7 @@ const StandardsReference: React.FC = () => {
     setSearchError(null);
 
     try {
-      const results = await standardsService.searchSections(query, options);
+      const results = await enhancedStandardsService.searchSections(query, options);
       setSearchResults(results);
       // Switch to search tab if we're not already there
       setActiveTab(1);

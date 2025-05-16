@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { Switch, Route, useLocation, useHistory } from 'react-router-dom';
 import { Box, Tabs, Tab, Typography, Button, useTheme } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -20,16 +20,18 @@ import {
   Rule as RuleIcon,
   ViewInAr as ViewInArIcon,
   CheckBox as CheckBoxIcon,
-  OfflineBolt as OfflineBoltIcon
+  OfflineBolt as OfflineBoltIcon,
+  Home as HomeIcon
 } from '@mui/icons-material';
 import { useThemeMode } from '../../contexts/ThemeContext';
 import { alpha } from '@mui/material/styles';
+import NotFound from '../../pages/NotFound';
 
 // Import Dashboard component
 import Dashboard from './Dashboard';
 
 // Import individual component implementations 
-import BuildingVisualization from './components/BuildingVisualization';
+// import BuildingVisualization from './components/BuildingVisualization';
 import StandardsReference from './components/StandardsReference';
 import EnergyConsumptionAnalytics from './components/Analytics/EnergyConsumptionAnalytics';
 import ROICalculatorComponent from './components/ROICalculator/ROICalculatorComponent';
@@ -61,12 +63,12 @@ const PredictiveMaintenanceModel = () => (
   </Box>
 );
 
-const BuildingViewer = () => (
-  <Box sx={{ p: 3, textAlign: 'center' }}>
-    <Typography variant="h4" gutterBottom>Building Visualization</Typography>
-    <Typography variant="body1">This component will be implemented as part of the Energy Audit system.</Typography>
-  </Box>
-);
+// const BuildingViewer = () => (
+//   <Box sx={{ p: 3, textAlign: 'center' }}>
+//     <Typography variant="h4" gutterBottom>Building Visualization</Typography>
+//     <Typography variant="body1">This component will be implemented as part of the Energy Audit system.</Typography>
+//   </Box>
+// );
 
 const StandardsCompliance = () => (
   <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -103,10 +105,46 @@ const IntegrationHub = () => (
   </Box>
 );
 
+// Define NavigateFunction type for v5 router
+export type NavigateFunction = (path: string) => void;
+
+// Redirect component for v5
+const Redirect = ({ to }: { to: string }) => {
+  const history = useHistory();
+  
+  useEffect(() => {
+    history.push(to);
+  }, [history, to]);
+  
+  return null;
+};
+
+// Create a local NotFound component to avoid import issues
+const NotFoundComponent = () => {
+  const history = useHistory();
+  return (
+    <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Typography variant="h1" sx={{ fontSize: '6rem', mb: 2 }}>404</Typography>
+      <Typography variant="h4" sx={{ mb: 3 }}>Page Not Found</Typography>
+      <Typography variant="body1" sx={{ mb: 4 }}>
+        The page you are looking for might have been removed, had its name
+        changed, or is temporarily unavailable.
+      </Typography>
+      <Button 
+        variant="contained" 
+        startIcon={<HomeIcon />} 
+        onClick={() => history.push('/')}
+      >
+        Back to Home
+      </Button>
+    </Box>
+  );
+};
+
 const EnergyAuditRouter: React.FC = () => {
   const theme = useTheme();
   const location = useLocation();
-  const navigate = useNavigate();
+  const history = useHistory();
   const { mode } = useThemeMode();
   
   const isSpecialTheme = ['blue', 'gray', 'energy'].includes(mode);
@@ -130,8 +168,10 @@ const EnergyAuditRouter: React.FC = () => {
   // Function to extract tab from path
   const getTabFromPath = (path: string) => {
     const pathParts = path.split('/');
-    const lastPart = pathParts[pathParts.length - 1];
-    return lastPart === 'energy-audit' || lastPart === '' ? 'dashboard' : lastPart;
+    if (pathParts.length >= 3 && pathParts[1] === 'energy-audit') {
+      return pathParts[2] || 'dashboard';
+    }
+    return 'dashboard';
   };
   
   const [activeTab, setActiveTab] = useState(() => {
@@ -146,7 +186,7 @@ const EnergyAuditRouter: React.FC = () => {
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: string) => {
     setActiveTab(newValue);
-    navigate(`/energy-audit/${newValue}`);
+    history.push(`/energy-audit/${newValue}`);
   };
 
   // Define tabs for navigation
@@ -158,12 +198,12 @@ const EnergyAuditRouter: React.FC = () => {
       component: <Dashboard />
     },
     {
-      label: 'Building Visualization',
-      value: 'building-visualization',
-      icon: <ViewInArIcon />,
-      component: <BuildingVisualization />
-    },
-    {
+    //   label: 'Building Visualization',
+    //   value: 'building-visualization',
+    //   icon: <ViewInArIcon />,
+    //   component: <BuildingVisualization />
+    // },
+    // {
       label: 'Standards Reference',
       value: 'standards-reference',
       icon: <RuleIcon />,
@@ -203,246 +243,101 @@ const EnergyAuditRouter: React.FC = () => {
 
   return (
     <Box sx={{ 
-      width: '100%', 
-      bgcolor: isSpecialTheme ? getContentBackgroundColor() : 'background.paper',
-      color: isSpecialTheme ? '#ffffff' : 'text.primary',
-      minHeight: '90vh',
-      maxHeight: 'calc(100vh - 64px)', // Standardized height calculation across all themes
       display: 'flex',
       flexDirection: 'column',
+      height: '100%',
+      bgcolor: getBackgroundColor(),
+      borderRadius: 2,
       overflow: 'hidden'
     }}>
+      {/* Navigation tabs */}
       <Box sx={{ 
-        borderBottom: 1, 
-        borderColor: isSpecialTheme ? 'rgba(255,255,255,0.1)' : 'divider',
-        bgcolor: getBackgroundColor(),
-        overflowX: 'auto',
-        flexShrink: 0, // Don't allow this element to shrink
-        '&::-webkit-scrollbar': {
-          height: '8px',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: isSpecialTheme ? 'rgba(255,255,255,0.3)' : theme.palette.mode === 'dark' ? '#555' : '#ccc',
-          borderRadius: '4px',
-        },
+        bgcolor: isSpecialTheme ? alpha(theme.palette.background.paper, 0.1) : theme.palette.background.default,
+        boxShadow: isSpecialTheme ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+        borderBottom: isSpecialTheme ? `1px solid ${alpha('#fff', 0.1)}` : `1px solid ${theme.palette.divider}`,
       }}>
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
           variant="scrollable"
           scrollButtons="auto"
-          textColor="primary"
-          indicatorColor="primary"
+          aria-label="energy audit navigation tabs"
           sx={{
-            height: '72px', // Fixed height for all themes
-            '& .MuiTab-root': {
-              color: isSpecialTheme ? '#ffffff' : undefined,
-              opacity: isSpecialTheme ? 0.8 : undefined,
-              height: '72px',
-              minHeight: '72px',
-              transition: 'all 0.2s ease',
-              padding: '0px 16px', // Consistent padding
-              '&.Mui-selected': {
-                color: isSpecialTheme ? '#ffffff' : undefined,
-                fontWeight: isSpecialTheme ? 700 : 600,
-                opacity: isSpecialTheme ? 1 : undefined,
-                backgroundColor: isSpecialTheme ? 'rgba(255,255,255,0.1)' : undefined,
-              },
-              '& .MuiSvgIcon-root': {
-                color: isSpecialTheme ? '#ffffff' : undefined,
-                opacity: isSpecialTheme ? 0.9 : undefined,
-                fontSize: '1.6rem',
-                marginBottom: '4px',
-              },
-              '& .MuiTypography-caption': {
-                color: isSpecialTheme ? '#ffffff' : undefined,
-                fontWeight: isSpecialTheme ? 500 : undefined,
-                textTransform: 'none',
-              },
-              '&:hover': {
-                backgroundColor: isSpecialTheme ? 'rgba(255,255,255,0.1)' : undefined,
-                opacity: isSpecialTheme ? 1 : undefined,
-              }
-            },
             '& .MuiTabs-indicator': {
-              backgroundColor: isSpecialTheme ? '#ffffff' : undefined,
-              height: isSpecialTheme ? 3 : undefined,
+              backgroundColor: theme.palette.primary.main,
             }
           }}
         >
           {tabs.map((tab) => (
             <Tab
               key={tab.value}
-              label={
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  flexDirection: 'column', 
-                  py: 0.5
-                }}>
-                  {tab.icon}
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      mt: 0.5,
-                      fontSize: '0.75rem',
-                      fontWeight: activeTab === tab.value ? 700 : 500,
-                      textShadow: isSpecialTheme ? '0 1px 2px rgba(0,0,0,0.3)' : 'none'
-                    }}
-                  >
-                    {tab.label}
-                  </Typography>
-                </Box>
-              }
+              label={tab.label}
               value={tab.value}
+              icon={tab.icon}
+              iconPosition="start"
               sx={{ 
-                minWidth: 92,
-                px: 1.5,
-                borderRadius: '4px 4px 0 0',
+                color: isSpecialTheme 
+                  ? 'rgba(255,255,255,0.7)' 
+                  : theme.palette.text.secondary,
+                '&.Mui-selected': {
+                  color: isSpecialTheme 
+                    ? '#fff' 
+                    : theme.palette.primary.main,
+                  fontWeight: 'bold',
+                },
+                textTransform: 'none'
               }}
             />
           ))}
         </Tabs>
       </Box>
+
+      {/* Route content */}
       <Box sx={{ 
-        py: 2, // Reduced vertical padding
-        px: 2,
-        flex: 1, // Take the remaining height
-        overflow: 'auto', // Make content scrollable
-        height: 'calc(100vh - 72px - 64px)', // Tab height + app bar
-        maxHeight: 'calc(100vh - 72px - 64px)',
-        color: isSpecialTheme ? '#ffffff' : 'inherit',
-        '& .MuiPaper-root': {
-          bgcolor: isSpecialTheme ? alpha('#ffffff', 0.05) : undefined,
-          backdropFilter: isSpecialTheme ? 'blur(10px)' : undefined,
-          borderRadius: 2,
-          boxShadow: isSpecialTheme ? '0 4px 20px rgba(0,0,0,0.1)' : undefined,
-          borderColor: isSpecialTheme ? alpha('#ffffff', 0.1) : undefined,
-        },
-        '& .MuiAlert-root, & .MuiCard-root, & [class*="infoBox"]': {
-          bgcolor: isSpecialTheme ? alpha('#ffffff', 0.07) : undefined,
-          borderColor: isSpecialTheme ? alpha('#ffffff', 0.1) : undefined,
-          borderRadius: 2,
-          boxShadow: isSpecialTheme ? '0 4px 12px rgba(0,0,0,0.1)' : undefined,
-        },
-        '& .MuiTypography-root': {
-          color: isSpecialTheme ? '#ffffff' : undefined,
-        },
-        '& .MuiTypography-body1, & .MuiTypography-body2': {
-          color: isSpecialTheme ? alpha('#ffffff', 0.85) : undefined
-        },
-        '& .MuiButton-root': {
-          fontWeight: 500,
-          borderRadius: '8px !important',
-          textTransform: 'none',
-          boxShadow: isSpecialTheme ? '0 2px 6px rgba(0,0,0,0.15)' : undefined,
-          padding: '6px 16px',
-          minHeight: '36px',
-          fontSize: '0.875rem',
-        },
-        '& .MuiButton-contained': {
-          backgroundColor: mode === 'energy' ? '#10b981' : 
-                          mode === 'blue' ? '#0284c7' : 
-                          mode === 'gray' ? '#4b5563' : undefined,
-          color: '#ffffff',
-          '&:hover': {
-            backgroundColor: mode === 'energy' ? '#059669' : 
-                            mode === 'blue' ? '#0369a1' : 
-                            mode === 'gray' ? '#374151' : undefined,
-          }
-        },
-        '& .MuiIconButton-root': {
-          borderRadius: '8px',
-          padding: '8px',
-          backgroundColor: mode === 'energy' ? 'rgba(16, 185, 129, 0.1)' : 
-                           mode === 'blue' ? 'rgba(2, 132, 199, 0.1)' : 
-                           mode === 'gray' ? 'rgba(75, 85, 99, 0.1)' : undefined,
-          '&:hover': {
-            backgroundColor: mode === 'energy' ? 'rgba(16, 185, 129, 0.2)' : 
-                             mode === 'blue' ? 'rgba(2, 132, 199, 0.2)' : 
-                             mode === 'gray' ? 'rgba(75, 85, 99, 0.2)' : undefined,
-          }
-        },
-        '& .MuiOutlinedInput-root': {
-          borderRadius: '8px',
-          '& fieldset': {
-            borderColor: isSpecialTheme ? alpha('#ffffff', 0.2) : undefined,
-          },
-          '&:hover fieldset': {
-            borderColor: isSpecialTheme ? alpha('#ffffff', 0.4) : undefined,
-          },
-          '&.Mui-focused fieldset': {
-            borderColor: mode === 'energy' ? '#10b981' : 
-                         mode === 'blue' ? '#0284c7' : 
-                         mode === 'gray' ? '#4b5563' : undefined,
-          }
-        },
-        '& .MuiSelect-select': {
-          borderRadius: '8px',
-          padding: '10px 14px',
-        },
-        '& .MuiInputBase-root': {
-          color: isSpecialTheme ? '#ffffff' : undefined,
-        },
-        '& .MuiFormLabel-root': {
-          color: isSpecialTheme ? alpha('#ffffff', 0.7) : undefined,
-        },
-        '& .MuiOutlinedInput-notchedOutline': {
-          borderColor: isSpecialTheme ? alpha('#ffffff', 0.2) : undefined,
-        },
-        '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
-          borderColor: isSpecialTheme ? alpha('#ffffff', 0.5) : undefined,
-        },
-        // Special styling for controls in the BuildingVisualization component
-        '& [class*="floorPlanControls"]': {
-          '& button, & .MuiButton-root': {
-            borderRadius: '8px !important',
-            padding: '6px 16px !important',
-            minHeight: '36px !important',
-            backgroundColor: isSpecialTheme ? alpha('#ffffff', 0.1) : undefined,
-            color: isSpecialTheme ? '#ffffff' : undefined,
-            '&:hover': {
-              backgroundColor: isSpecialTheme ? alpha('#ffffff', 0.2) : undefined,
-            }
-          },
-          '& .MuiSelect-select, & .MuiOutlinedInput-root': {
-            borderRadius: '8px !important',
-            backgroundColor: isSpecialTheme ? alpha('#ffffff', 0.05) : undefined,
-          }
-        },
-        // Special styling for tabs in the BuildingVisualization component
-        '& [role="tablist"]': {
-          '& .MuiTab-root': {
-            textTransform: 'none',
-            fontWeight: 500,
-            color: isSpecialTheme ? '#ffffff' : undefined,
-            opacity: isSpecialTheme ? 0.8 : undefined,
-            '&.Mui-selected': {
-              color: isSpecialTheme ? '#ffffff' : undefined,
-              opacity: isSpecialTheme ? 1 : undefined,
-              fontWeight: 600,
-            }
-          },
-          '& .MuiTabs-indicator': {
-            backgroundColor: mode === 'energy' ? '#10b981' : 
-                             mode === 'blue' ? '#0284c7' : 
-                             mode === 'gray' ? '#4b5563' : undefined,
-            height: 3,
-          }
-        }
+        flexGrow: 1, 
+        overflow: 'auto',
+        bgcolor: getContentBackgroundColor(),
+        color: isSpecialTheme ? 'white' : 'inherit',
       }}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
+        <Switch>
+          <Route exact path="/">
+            <Dashboard />
+          </Route>
+          
           {tabs.map((tab) => (
-            <Route key={tab.value} path={`/${tab.value}`} element={tab.component} />
+            <Route key={tab.value} path={`/energy-audit/${tab.value}`}>
+              {tab.component}
+            </Route>
           ))}
           
-          {/* Add new routes for compliance checker components */}
-          <Route path="/standards-reference/compliance/checklist/:id" element={<ChecklistDetail />} />
+          <Route path="/standards-reference/compliance/checklist/:id">
+            <ChecklistDetail />
+          </Route>
           
-          {/* Redirect to dashboard if no route matches */}
-          <Route path="*" element={<Navigate to="/energy-audit/dashboard" replace />} />
-        </Routes>
+          {/* This catch-all is causing reload issues - only redirect for specific cases */}
+          <Route path="*">
+            {(() => {
+              // Only redirect if we're exactly at /energy-audit
+              if (location.pathname === '/energy-audit') {
+                return <Redirect to="/energy-audit/dashboard" />;
+              }
+              
+              // Only redirect if we're in an energy-audit subpath that doesn't match any tab
+              if (location.pathname.startsWith('/energy-audit/')) {
+                const requestedTab = location.pathname.split('/')[2]; // Get the second path segment
+                const tabExists = tabs.some(tab => tab.value === requestedTab);
+                
+                if (!tabExists) {
+                  // Just return the dashboard for any invalid energy-audit path
+                  return <Dashboard />;
+                }
+              }
+              
+              // For all other cases, show the NotFound page
+              return <NotFoundComponent />;
+            })()}
+          </Route>
+        </Switch>
       </Box>
     </Box>
   );

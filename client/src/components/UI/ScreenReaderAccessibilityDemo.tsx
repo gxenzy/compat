@@ -296,7 +296,7 @@ const ScreenReaderAccessibilityDemo: React.FC = () => {
                   </pre>
                 </Paper>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  This is the accessible data table representation that screen readers can navigate.
+                  This is the accessible data table representation that screen readers can history.push.
                   Each chart type generates an appropriate table structure.
                 </Typography>
               </TabPanel>
@@ -328,7 +328,7 @@ const ScreenReaderAccessibilityDemo: React.FC = () => {
                 
                 <Typography component="dt" fontWeight="bold">Arrow Keys</Typography>
                 <Typography component="dd" sx={{ mb: 1 }}>
-                  When chart is focused, navigate between data points
+                  When chart is focused, history.push between data points
                 </Typography>
               </Box>
             </Grid>

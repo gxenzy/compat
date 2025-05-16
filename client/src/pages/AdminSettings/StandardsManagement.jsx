@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import complianceService from '../../services/complianceService';
+import { debugLog, debugState, debugAPI } from '../../utils/debug';
 
 const StandardsManagement = () => {
   // State for tab management
@@ -91,19 +92,97 @@ const StandardsManagement = () => {
     setLoading(true);
     setError(null);
     try {
+      debugLog('StandardsManagement', 'Loading standards data...');
+      
+      // First try direct API calls to see the raw data
+      try {
+        console.log('DIRECT API TEST: Calling endpoints directly to check data format');
+        
+        const buildingResponse = await fetch('/compliance/building-standards/all');
+        const buildingData = await buildingResponse.json();
+        console.log('RAW BUILDING STANDARDS DATA:', buildingData);
+        
+        const projectResponse = await fetch('/compliance/project-standards/all');
+        const projectData = await projectResponse.json();
+        console.log('RAW PROJECT STANDARDS DATA:', projectData);
+        
+        const recommendationsResponse = await fetch('/compliance/recommendations/all');
+        const recommendationsData = await recommendationsResponse.json();
+        console.log('RAW RECOMMENDATIONS DATA:', recommendationsData);
+      } catch (directErr) {
+        console.error('Direct API test failed:', directErr);
+      }
+      
       // These API calls will need to be implemented in complianceService
-      const [buildingData, projectData, recommendationsData] = await Promise.all([
+      const results = await Promise.all([
         complianceService.getAllBuildingTypeStandards(),
         complianceService.getAllProjectTypeStandards(),
         complianceService.getAllComplianceRecommendations()
       ]);
       
+      const buildingData = results[0];
+      const projectData = results[1];
+      const recommendationsData = results[2];
+      
+      // Log the data after transformation
+      console.log('AFTER TRANSFORMATION - Building Standards:', buildingData);
+      console.log('AFTER TRANSFORMATION - Project Standards:', projectData);
+      console.log('AFTER TRANSFORMATION - Recommendations:', recommendationsData);
+      
+      // Check data format - are we getting objects with the expected camelCase properties?
+      if (buildingData && buildingData.length > 0) {
+        console.log('Sample building standard first item:', buildingData[0]);
+        console.log('Properties present:', Object.keys(buildingData[0]));
+        console.log('buildingType present?', buildingData[0].hasOwnProperty('buildingType'));
+        console.log('building_type present?', buildingData[0].hasOwnProperty('building_type'));
+      }
+      
+      if (projectData && projectData.length > 0) {
+        console.log('Sample project standard first item:', projectData[0]);
+        console.log('Properties present:', Object.keys(projectData[0]));
+        console.log('projectType present?', projectData[0].hasOwnProperty('projectType'));
+        console.log('project_type present?', projectData[0].hasOwnProperty('project_type'));
+      }
+      
+      if (recommendationsData && recommendationsData.length > 0) {
+        console.log('Sample recommendation first item:', recommendationsData[0]);
+        console.log('Properties present:', Object.keys(recommendationsData[0]));
+        console.log('recommendationText present?', recommendationsData[0].hasOwnProperty('recommendationText'));
+        console.log('recommendation_text present?', recommendationsData[0].hasOwnProperty('recommendation_text'));
+      }
+      
+      debugLog('StandardsManagement', 'Received building standards data:', buildingData);
+      debugLog('StandardsManagement', 'Received project standards data:', projectData);
+      debugLog('StandardsManagement', 'Received recommendations data:', recommendationsData);
+      
+      // Check if data exists and is in the expected format
+      if (!Array.isArray(buildingData)) {
+        debugLog('StandardsManagement', 'ERROR: Building standards data is not an array:', buildingData);
+      }
+      
+      if (!Array.isArray(projectData)) {
+        debugLog('StandardsManagement', 'ERROR: Project standards data is not an array:', projectData);
+      }
+      
+      if (!Array.isArray(recommendationsData)) {
+        debugLog('StandardsManagement', 'ERROR: Recommendations data is not an array:', recommendationsData);
+      }
+      
       setBuildingStandards(buildingData);
       setProjectStandards(projectData);
       setRecommendations(recommendationsData);
     } catch (err) {
-      console.error('Error loading standards data:', err);
-      setError('Failed to load standards data. Please try again.');
+      debugLog('StandardsManagement', 'Error loading standards data:', err);
+      
+      if (err.response) {
+        debugLog('StandardsManagement', 'Error response data:', err.response.data);
+        debugLog('StandardsManagement', 'Error response status:', err.response.status);
+        debugLog('StandardsManagement', 'Error response headers:', err.response.headers);
+      } else if (err.request) {
+        debugLog('StandardsManagement', 'No response received from server:', err.request);
+      }
+      
+      setError('Failed to load standards data. Please try again or contact support.');
     } finally {
       setLoading(false);
     }
@@ -186,50 +265,63 @@ const StandardsManagement = () => {
     setLoading(true);
     try {
       let result;
+      let data;
       
       if (dialogType === 'building') {
-        const data = {
+        data = {
           ...buildingForm,
           minimumValue: buildingForm.minimumValue !== '' ? parseFloat(buildingForm.minimumValue) : null,
           maximumValue: buildingForm.maximumValue !== '' ? parseFloat(buildingForm.maximumValue) : null
         };
         
+        debugLog('StandardsManagement', `${dialogMode === 'add' ? 'Creating' : 'Updating'} building standard:`, data);
+        
         if (dialogMode === 'add') {
           result = await complianceService.createBuildingTypeStandard(data);
+          debugLog('StandardsManagement', 'Building standard created:', result);
           setBuildingStandards([...buildingStandards, result]);
         } else {
           result = await complianceService.updateBuildingTypeStandard(currentItem.id, data);
+          debugLog('StandardsManagement', 'Building standard updated:', result);
           setBuildingStandards(buildingStandards.map(item => 
             item.id === currentItem.id ? result : item
           ));
         }
       } else if (dialogType === 'project') {
-        const data = {
+        data = {
           ...projectForm,
           minimumValue: projectForm.minimumValue !== '' ? parseFloat(projectForm.minimumValue) : null,
           maximumValue: projectForm.maximumValue !== '' ? parseFloat(projectForm.maximumValue) : null
         };
         
+        debugLog('StandardsManagement', `${dialogMode === 'add' ? 'Creating' : 'Updating'} project standard:`, data);
+        
         if (dialogMode === 'add') {
           result = await complianceService.createProjectTypeStandard(data);
+          debugLog('StandardsManagement', 'Project standard created:', result);
           setProjectStandards([...projectStandards, result]);
         } else {
           result = await complianceService.updateProjectTypeStandard(currentItem.id, data);
+          debugLog('StandardsManagement', 'Project standard updated:', result);
           setProjectStandards(projectStandards.map(item => 
             item.id === currentItem.id ? result : item
           ));
         }
       } else if (dialogType === 'recommendation') {
-        const data = {
+        data = {
           ...recommendationForm,
           ruleId: parseInt(recommendationForm.ruleId, 10)
         };
         
+        debugLog('StandardsManagement', `${dialogMode === 'add' ? 'Creating' : 'Updating'} recommendation:`, data);
+        
         if (dialogMode === 'add') {
           result = await complianceService.createComplianceRecommendation(data);
+          debugLog('StandardsManagement', 'Recommendation created:', result);
           setRecommendations([...recommendations, result]);
         } else {
           result = await complianceService.updateComplianceRecommendation(currentItem.id, data);
+          debugLog('StandardsManagement', 'Recommendation updated:', result);
           setRecommendations(recommendations.map(item => 
             item.id === currentItem.id ? result : item
           ));
@@ -244,7 +336,12 @@ const StandardsManagement = () => {
       
       setDialogOpen(false);
     } catch (err) {
-      console.error('Error submitting data:', err);
+      debugLog('StandardsManagement', 'Error submitting data:', err);
+      
+      if (err.response) {
+        debugLog('StandardsManagement', 'Error response data:', err.response.data);
+      }
+      
       setNotification({
         open: true,
         message: `Failed to ${dialogMode} standard: ${err.message || 'Unknown error'}`,
@@ -299,12 +396,54 @@ const StandardsManagement = () => {
   // Define building standards columns
   const buildingStandardsColumns = [
     { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'buildingType', headerName: 'Building Type', width: 150 },
-    { field: 'standardType', headerName: 'Standard Type', width: 150 },
-    { field: 'standardCode', headerName: 'Standard Code', width: 150 },
-    { field: 'minimumValue', headerName: 'Min Value', width: 120 },
-    { field: 'maximumValue', headerName: 'Max Value', width: 120 },
-    { field: 'unit', headerName: 'Unit', width: 100 },
+    { 
+      field: 'buildingType', 
+      headerName: 'Building Type', 
+      width: 150,
+      valueGetter: (params) => {
+        // Handle both camelCase and snake_case property names
+        return params.row.buildingType || params.row.building_type || '';
+      }
+    },
+    { 
+      field: 'standardType', 
+      headerName: 'Standard Type', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.standardType || params.row.standard_type || '';
+      }
+    },
+    { 
+      field: 'standardCode', 
+      headerName: 'Standard Code', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.standardCode || params.row.standard_code || '';
+      }
+    },
+    { 
+      field: 'minimumValue', 
+      headerName: 'Min Value', 
+      width: 120,
+      valueGetter: (params) => {
+        return params.row.minimumValue !== undefined ? params.row.minimumValue : 
+               params.row.minimum_value !== undefined ? params.row.minimum_value : '';
+      }
+    },
+    { 
+      field: 'maximumValue', 
+      headerName: 'Max Value', 
+      width: 120,
+      valueGetter: (params) => {
+        return params.row.maximumValue !== undefined ? params.row.maximumValue : 
+               params.row.maximum_value !== undefined ? params.row.maximum_value : '';
+      }
+    },
+    { 
+      field: 'unit', 
+      headerName: 'Unit', 
+      width: 100 
+    },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -331,12 +470,53 @@ const StandardsManagement = () => {
   // Define project standards columns
   const projectStandardsColumns = [
     { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'projectType', headerName: 'Project Type', width: 150 },
-    { field: 'standardType', headerName: 'Standard Type', width: 150 },
-    { field: 'standardCode', headerName: 'Standard Code', width: 150 },
-    { field: 'minimumValue', headerName: 'Min Value', width: 120 },
-    { field: 'maximumValue', headerName: 'Max Value', width: 120 },
-    { field: 'unit', headerName: 'Unit', width: 100 },
+    { 
+      field: 'projectType', 
+      headerName: 'Project Type', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.projectType || params.row.project_type || '';
+      }
+    },
+    { 
+      field: 'standardType', 
+      headerName: 'Standard Type', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.standardType || params.row.standard_type || '';
+      }
+    },
+    { 
+      field: 'standardCode', 
+      headerName: 'Standard Code', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.standardCode || params.row.standard_code || '';
+      }
+    },
+    { 
+      field: 'minimumValue', 
+      headerName: 'Min Value', 
+      width: 120,
+      valueGetter: (params) => {
+        return params.row.minimumValue !== undefined ? params.row.minimumValue : 
+               params.row.minimum_value !== undefined ? params.row.minimum_value : '';
+      }
+    },
+    { 
+      field: 'maximumValue', 
+      headerName: 'Max Value', 
+      width: 120,
+      valueGetter: (params) => {
+        return params.row.maximumValue !== undefined ? params.row.maximumValue : 
+               params.row.maximum_value !== undefined ? params.row.maximum_value : '';
+      }
+    },
+    { 
+      field: 'unit', 
+      headerName: 'Unit', 
+      width: 100 
+    },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -363,11 +543,40 @@ const StandardsManagement = () => {
   // Define recommendations columns
   const recommendationsColumns = [
     { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'ruleId', headerName: 'Rule ID', width: 100 },
-    { field: 'nonComplianceType', headerName: 'Non-Compliance Type', width: 180 },
-    { field: 'calculatorType', headerName: 'Calculator Type', width: 150 },
+    { 
+      field: 'ruleId', 
+      headerName: 'Rule ID', 
+      width: 100,
+      valueGetter: (params) => {
+        return params.row.ruleId !== undefined ? params.row.ruleId : 
+               params.row.rule_id !== undefined ? params.row.rule_id : '';
+      }
+    },
+    { 
+      field: 'nonComplianceType', 
+      headerName: 'Non-Compliance Type', 
+      width: 180,
+      valueGetter: (params) => {
+        return params.row.nonComplianceType || params.row.non_compliance_type || '';
+      }
+    },
+    { 
+      field: 'calculatorType', 
+      headerName: 'Calculator Type', 
+      width: 150,
+      valueGetter: (params) => {
+        return params.row.calculatorType || params.row.calculator_type || '';
+      }
+    },
     { field: 'priority', headerName: 'Priority', width: 120 },
-    { field: 'recommendationText', headerName: 'Recommendation', width: 300 },
+    { 
+      field: 'recommendationText', 
+      headerName: 'Recommendation', 
+      width: 300,
+      valueGetter: (params) => {
+        return params.row.recommendationText || params.row.recommendation_text || '';
+      }
+    },
     {
       field: 'actions',
       headerName: 'Actions',

@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import TagFilter from './TagFilter';
+import { API_BASE_URL, STANDARDS_API, apiClient } from '../../../../utils/apiConfig';
 
 interface SearchResult {
   id: number;
@@ -126,7 +127,7 @@ const StandardsSearch: React.FC<StandardsSearchProps> = ({ onSectionSelect }) =>
   useEffect(() => {
     const fetchStandards = async () => {
       try {
-        const response = await axios.get('/api/standards');
+        const response = await apiClient.get(`${API_BASE_URL}/standards`);
         setStandards(response.data);
       } catch (err) {
         console.error('Error fetching standards:', err);
@@ -284,7 +285,7 @@ const StandardsSearch: React.FC<StandardsSearchProps> = ({ onSectionSelect }) =>
       }
       
       // Execute search
-      const response = await axios.get('/api/search/sections', { params });
+      const response = await apiClient.get(`${API_BASE_URL}/search/sections`, { params });
       
       setSearchResults(response.data);
       setSearchExecuted(true);

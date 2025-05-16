@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -55,7 +55,7 @@ interface UserActivityLog {
 
 const UserActivityLog: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+  const history = useHistory();
   const { hasRole } = useAuthContext();
   const [logs, setLogs] = useState<UserActivityLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<UserActivityLog[]>([]);
@@ -251,7 +251,7 @@ const UserActivityLog: React.FC = () => {
             <Link 
               color="inherit" 
               sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-              onClick={() => navigate('/user-management')}
+              onClick={() => history.push('/user-management')}
             >
               User Management
             </Link>
@@ -267,7 +267,7 @@ const UserActivityLog: React.FC = () => {
         <Button 
           variant="outlined" 
           startIcon={<ArrowBackIcon />} 
-          onClick={() => navigate('/user-management')}
+          onClick={() => history.push('/user-management')}
         >
           Back to Users
         </Button>

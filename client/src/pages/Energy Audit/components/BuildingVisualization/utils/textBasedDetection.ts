@@ -99,7 +99,7 @@ const getRoomNamesForFloor = (floor: string): Record<string, string> => {
  * Detect text labels in the floor plan image
  * This uses a connected component approach to identify text-like elements
  */
-const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: number, width: number, height: number}> => {
+const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: number, width: number, height: number, text?: string}> => {
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
   const imageData = ctx.getImageData(0, 0, width, height);
@@ -114,14 +114,54 @@ const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: n
     );
   }
   
-  // Use threshold to create binary image (text vs background)
-  // Text in floor plans is typically darker than the background
-  const threshold = 170; // Adjusted for floor plan text detection
+  // Use dynamic threshold to create binary image (text vs background)
+  // Analyze histogram to find the optimal threshold
+  const histogram = new Array(256).fill(0);
+  for (let i = 0; i < grayscale.length; i++) {
+    histogram[grayscale[i]]++;
+  }
+  
+  // Otsu's method for optimal threshold
+  let threshold = 128; // Default threshold
+  let maxVariance = 0;
+  let sum = 0;
+  let sumB = 0;
+  let wB = 0;
+  let wF = 0;
+  
+  for (let i = 0; i < 256; i++) {
+    sum += i * histogram[i];
+  }
+  
+  for (let i = 0; i < 256; i++) {
+    wB += histogram[i]; // Weight Background
+    if (wB === 0) continue;
+    
+    wF = grayscale.length - wB; // Weight Foreground
+    if (wF === 0) break;
+    
+    sumB += i * histogram[i];
+    const mB = sumB / wB; // Mean Background
+    const mF = (sum - sumB) / wF; // Mean Foreground
+    
+    // Between class variance
+    const variance = wB * wF * (mB - mF) * (mB - mF);
+    
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      threshold = i;
+    }
+  }
+  
+  console.log(`Calculated optimal threshold: ${threshold}`);
+  
+  // Use threshold with offset (slightly lower to catch more text)
+  const binaryThreshold = Math.max(30, threshold - 20);
   const binary = new Uint8Array(width * height);
   
   for (let i = 0; i < grayscale.length; i++) {
     // Text (dark) pixels are represented by 1, background (light) by 0
-    binary[i] = grayscale[i] < threshold ? 1 : 0;
+    binary[i] = grayscale[i] < binaryThreshold ? 1 : 0;
   }
   
   // Connected component labeling to find text clusters
@@ -161,6 +201,49 @@ const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: n
     }
   }
   
+  // Second pass: merge equivalent labels
+  const equivalences = new Array(nextLabel).fill(0);
+  for (let i = 0; i < nextLabel; i++) {
+    equivalences[i] = i;
+  }
+  
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      
+      if (binary[idx] === 0) continue;
+      
+      const currentLabel = labels[idx];
+      
+      // Check 8-connected neighbors for different labels
+      for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
+        for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
+          if (ny === y && nx === x) continue;
+          
+          const nidx = ny * width + nx;
+          if (binary[nidx] === 1) {
+            const neighborLabel = labels[nidx];
+            // Unite the equivalence classes
+            if (neighborLabel !== currentLabel) {
+              const root1 = findRoot(equivalences, currentLabel);
+              const root2 = findRoot(equivalences, neighborLabel);
+              if (root1 !== root2) {
+                equivalences[Math.max(root1, root2)] = Math.min(root1, root2);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Update labels based on equivalences
+  for (let i = 0; i < labels.length; i++) {
+    if (labels[i] > 0) {
+      labels[i] = findRoot(equivalences, labels[i]);
+    }
+  }
+  
   // Analyze components to identify text-like elements
   const componentBounds = new Map<number, {
     minX: number;
@@ -196,9 +279,30 @@ const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: n
     }
   }
   
-  // Filter for text-like components
-  // Text typically has specific size and aspect ratio characteristics
-  const textLabels: Array<{x: number, y: number, width: number, height: number}> = [];
+  // Filter for text-like components with improved criteria
+  const textLabels: Array<{x: number, y: number, width: number, height: number, text?: string}> = [];
+  
+  // Match against common room name patterns
+  const roomPatterns = [
+    /room\s*\d+/i,     // Room 123
+    /office\s*\d*/i,   // Office, Office 1
+    /conf(erence)?/i,  // Conference, Conf
+    /meeting/i,        // Meeting Room
+    /hallway/i,        // Hallway
+    /lab(oratory)?/i,  // Lab, Laboratory
+    /kitchen/i,        // Kitchen
+    /toilet/i,         // Toilet
+    /reception/i,      // Reception
+    /lobby/i,          // Lobby
+    /stairs/i,         // Stairs
+    /elevator/i,       // Elevator
+    /storage/i,        // Storage
+    /pantry/i,         // Pantry
+    /electrical/i,     // Electrical Room
+    /mech(anical)?/i,  // Mechanical, Mech Room
+    /server/i,         // Server Room
+    /\d{1,3}/          // Just numbers (like 101, 102)
+  ];
   
   componentBounds.forEach((bounds, label) => {
     const width = bounds.maxX - bounds.minX + 1;
@@ -211,29 +315,75 @@ const detectTextLabels = (ctx: CanvasRenderingContext2D): Array<{x: number, y: n
     // 3. Reasonable aspect ratio (not extremely thin or wide)
     // 4. Reasonable density (filled area compared to bounding box)
     
-    const minTextSize = 10; // Minimum text size in pixels
-    const maxTextSize = Math.min(ctx.canvas.width, ctx.canvas.height) * 0.1; // Max 10% of canvas dimension
+    const minTextSize = 5; // Minimum text size in pixels - lower to catch more text
+    const maxTextWidth = Math.min(ctx.canvas.width, ctx.canvas.height) * 0.2; // Max 20% of canvas dimension
+    const maxTextHeight = Math.min(ctx.canvas.width, ctx.canvas.height) * 0.07; // Max 7% of canvas dimension
     const minAspectRatio = 0.2;
-    const maxAspectRatio = 10.0;
+    const maxAspectRatio = 15.0; // Higher to catch wider text
     const density = bounds.pixelCount / (width * height);
-    const minDensity = 0.2; // At least 20% of the bounding box should be filled
+    const minDensity = 0.15; // At least 15% of the bounding box should be filled
     
     if (width >= minTextSize && height >= minTextSize &&
-        width <= maxTextSize && height <= maxTextSize &&
+        width <= maxTextWidth && height <= maxTextHeight &&
         aspectRatio >= minAspectRatio && aspectRatio <= maxAspectRatio &&
         density >= minDensity) {
+        
+      // Extract the text content by creating a temporary canvas
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
       
-      textLabels.push({
-        x: bounds.minX + width / 2, // Center x
-        y: bounds.minY + height / 2, // Center y
-        width,
-        height
-      });
+      if (tempCtx) {
+        // Draw the region to the temp canvas
+        tempCtx.drawImage(
+          ctx.canvas,
+          bounds.minX, bounds.minY, width, height,
+          0, 0, width, height
+        );
+        
+        // Use a browser-based OCR library if available, or
+        // manually analyze for basic text pattern detection
+        const tempImageData = tempCtx.getImageData(0, 0, width, height);
+        const tempData = tempImageData.data;
+        
+        // Enhance contrast to make text more visible
+        for (let i = 0; i < tempData.length; i += 4) {
+          const avg = (tempData[i] + tempData[i + 1] + tempData[i + 2]) / 3;
+          const newVal = avg < 128 ? 0 : 255;
+          tempData[i] = tempData[i + 1] = tempData[i + 2] = newVal;
+        }
+        tempCtx.putImageData(tempImageData, 0, 0);
+        
+        // TODO: In a real implementation, we'd use a proper OCR here
+        // For now, we'll just use these extracted regions as potential room labels
+        const detectedText = ''; // Placeholder for OCR result
+        
+        // Check if this matches a room pattern
+        const isRoomLabel = roomPatterns.some(pattern => pattern.test(detectedText));
+        
+        // All text regions are considered potential room labels
+        textLabels.push({
+          x: bounds.minX, 
+          y: bounds.minY,
+          width, 
+          height,
+          text: detectedText || undefined
+        });
+      }
     }
   });
   
   return textLabels;
 };
+
+// Helper function to find the root of an equivalence class
+function findRoot(equivalences: number[], label: number): number {
+  while (equivalences[label] !== label) {
+    label = equivalences[label];
+  }
+  return label;
+}
 
 /**
  * Flood fill algorithm to identify room boundaries from a starting point

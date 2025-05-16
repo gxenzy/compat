@@ -35,26 +35,26 @@ import {
   MonetizationOn as MonetizationOnIcon,
   Work as WorkIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import VoltageDropWidget from './components/Calculators/VoltageDropWidget';
 
 const Dashboard = (): ReactElement => {
-  const navigate = useNavigate();
+  const history = useHistory();
   const theme = useTheme();
 
   // Navigate to different sections of the energy audit system
   const navigateTo = (path: string) => {
-    navigate(path);
+    history.push(path);
   };
 
   // Main feature cards for the dashboard
   const featureCards = [
-    {
-      title: 'Building Visualization',
-      description: 'Interactive 3D building visualization with energy analysis overlays.',
-      icon: <ViewInArIcon />,
-      path: '/energy-audit/building-visualization'
-    },
+    // {
+    //   title: 'Building Visualization',
+    //   description: 'Interactive 3D building visualization with energy analysis overlays.',
+    //   icon: <ViewInArIcon />,
+    //   path: '/energy-audit/building-visualization'
+    // },
     {
       title: 'Standards Reference',
       description: 'Access energy codes and standards for compliance verification.',

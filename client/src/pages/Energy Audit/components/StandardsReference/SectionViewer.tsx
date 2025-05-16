@@ -48,6 +48,7 @@ import {
   Download as DownloadIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { STANDARDS_API, apiClient } from '../../../../utils/apiConfig';
 
 interface SectionData {
   id: number;
@@ -193,7 +194,7 @@ const SectionViewer: React.FC<{
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`/api/standards-api/sections/${id}`);
+      const response = await apiClient.get(STANDARDS_API.SECTION_BY_ID(id));
       setSection(response.data);
       setLoading(false);
     } catch (error) {

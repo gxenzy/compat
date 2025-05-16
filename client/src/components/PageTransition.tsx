@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface PageTransitionProps {
@@ -6,6 +6,7 @@ interface PageTransitionProps {
   variant?: 'fade' | 'slide' | 'scale' | 'none';
   duration?: number;
   delay?: number;
+  key?: string;
 }
 
 const PageTransition: React.FC<PageTransitionProps> = ({
@@ -43,6 +44,16 @@ const PageTransition: React.FC<PageTransitionProps> = ({
     console.warn(`Invalid variant "${variant}" provided to PageTransition. Falling back to "fade".`);
     variant = 'fade';
   }
+  
+  // Force any data loading side effects to run on mount
+  useEffect(() => {
+    // This empty effect will cause any child components to remount
+    // whenever the key of this component changes
+    console.log('PageTransition mounted');
+    return () => {
+      console.log('PageTransition unmounted');
+    };
+  }, []);
 
   return (
     <motion.div
@@ -60,6 +71,8 @@ const PageTransition: React.FC<PageTransitionProps> = ({
         height: '100%',
         position: 'relative',
         willChange: 'transform, opacity',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {children}

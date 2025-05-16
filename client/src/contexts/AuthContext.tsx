@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
 import { UserRole, NotificationPreferences, NotificationType } from '../types';
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const history = useHistory();
 
   // Check if user has a specific role
   const hasRole = (role: UserRole): boolean => {
@@ -81,25 +81,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = localStorage.getItem('token');
         
         if (token) {
-          // Check if token is valid
-          const user = await authService.verifyToken();
-          if (user) {
-            setCurrentUser(user);
-          }
-        } else {
-          // Try to restore from localStorage as fallback
+          console.log('Token found in localStorage, setting current user');
+          // Get user data from localStorage instead of verifying with server
           const savedUser = localStorage.getItem('currentUser');
           if (savedUser) {
             try {
-              // Verify that the cached user is still valid with the server
-              await authService.verifyToken();
-              setCurrentUser(JSON.parse(savedUser));
-            } catch (err) {
-              // Token invalid, remove saved user
+              const user = JSON.parse(savedUser);
+              setCurrentUser(user);
+              console.log('User restored from localStorage:', user.username);
+            } catch (parseError) {
+              console.error('Failed to parse user from localStorage', parseError);
+              // Clear invalid data
               localStorage.removeItem('currentUser');
               localStorage.removeItem('token');
             }
           }
+        } else {
+          console.log('No token found in localStorage');
         }
       } catch (err) {
         console.error('Authentication error:', err);
@@ -136,12 +134,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
 
     try {
-      await authService.logout();
+      // Remove token and user from localStorage immediately
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      
+      // Always clear the user state
       setCurrentUser(null);
-      navigate('/login');
+      
+      // Navigate to login page without attempting server communication
+      history.push('/login');
     } catch (err) {
       console.error('Logout error:', err);
-      setError('Logout failed. Please try again.');
+      // Still clear state and navigate to login
+      setCurrentUser(null);
+      history.push('/login');
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,18 @@ class Standard {
     try {
       const { code_name, full_name, version, issuing_body, effective_date, description } = data;
       
+      // Check if standard already exists
+      const existingStandard = await query(
+        `SELECT id FROM standards 
+        WHERE code_name = ? AND version = ?`,
+        [code_name, version]
+      );
+      
+      if (existingStandard.length > 0) {
+        return existingStandard[0].id;
+      }
+      
+      // Insert new standard if it doesn't exist
       const result = await query(
         `INSERT INTO standards 
         (code_name, full_name, version, issuing_body, effective_date, description)
@@ -93,6 +105,18 @@ class Standard {
         has_figures
       } = data;
       
+      // Check if section already exists
+      const existingSection = await query(
+        `SELECT id FROM standard_sections 
+        WHERE standard_id = ? AND section_number = ?`,
+        [standard_id, section_number]
+      );
+      
+      if (existingSection.length > 0) {
+        return existingSection[0].id;
+      }
+      
+      // Insert new section if it doesn't exist
       const result = await query(
         `INSERT INTO standard_sections
         (standard_id, section_number, title, parent_section_id, content, has_tables, has_figures)
@@ -375,6 +399,18 @@ class Standard {
         severity
       } = data;
       
+      // Check if a similar requirement already exists
+      const existingRequirement = await query(
+        `SELECT id FROM compliance_requirements 
+        WHERE section_id = ? AND requirement_type = ? AND SUBSTRING(description, 1, 255) = SUBSTRING(?, 1, 255)`,
+        [section_id, requirement_type, description]
+      );
+      
+      if (existingRequirement.length > 0) {
+        return existingRequirement[0].id;
+      }
+      
+      // Insert new requirement if it doesn't exist
       const result = await query(
         `INSERT INTO compliance_requirements
         (section_id, requirement_type, description, verification_method, severity)
@@ -450,6 +486,18 @@ class Standard {
     try {
       const { section_id, table_number, title, content, notes } = data;
       
+      // Check if table already exists
+      const existingTable = await query(
+        `SELECT id FROM standard_tables 
+        WHERE section_id = ? AND table_number = ?`,
+        [section_id, table_number]
+      );
+      
+      if (existingTable.length > 0) {
+        return existingTable[0].id;
+      }
+      
+      // Insert new table if it doesn't exist
       const result = await query(
         `INSERT INTO standard_tables
         (section_id, table_number, title, content, notes)
@@ -485,6 +533,18 @@ class Standard {
     try {
       const { section_id, figure_number, title, image_path, caption } = data;
       
+      // Check if figure already exists
+      const existingFigure = await query(
+        `SELECT id FROM standard_figures 
+        WHERE section_id = ? AND figure_number = ?`,
+        [section_id, figure_number]
+      );
+      
+      if (existingFigure.length > 0) {
+        return existingFigure[0].id;
+      }
+      
+      // Insert new figure if it doesn't exist
       const result = await query(
         `INSERT INTO standard_figures
         (section_id, figure_number, title, image_path, caption)
@@ -529,6 +589,18 @@ class Standard {
         tags
       } = data;
       
+      // Check if a similar resource already exists
+      const existingResource = await query(
+        `SELECT id FROM educational_resources 
+        WHERE section_id = ? AND resource_type = ? AND title = ? AND url = ?`,
+        [section_id, resource_type, title, url]
+      );
+      
+      if (existingResource.length > 0) {
+        return existingResource[0].id;
+      }
+      
+      // Insert new resource if it doesn't exist
       const result = await query(
         `INSERT INTO educational_resources
         (section_id, resource_type, title, description, url, difficulty, duration, tags)
@@ -641,6 +713,18 @@ class Standard {
     try {
       const { user_id, section_id, note_text } = data;
       
+      // Check if a similar note already exists
+      const existingNote = await query(
+        `SELECT id FROM standard_notes 
+        WHERE user_id = ? AND section_id = ? AND SUBSTRING(note_text, 1, 255) = SUBSTRING(?, 1, 255)`,
+        [user_id, section_id, note_text]
+      );
+      
+      if (existingNote.length > 0) {
+        return existingNote[0].id;
+      }
+      
+      // Insert new note if it doesn't exist
       const result = await query(
         `INSERT INTO standard_notes
         (user_id, section_id, note_text)

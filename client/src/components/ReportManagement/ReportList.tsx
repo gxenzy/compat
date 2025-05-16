@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import { Report, ReportType, ReportStatus } from '../../types/reports';
 import reportService from '../../services/reportService';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { useApiRequest } from '../../hooks/useApiRequest';
 
 // Report type labels and colors
@@ -105,7 +105,7 @@ const ReportList: React.FC<ReportListProps> = ({
   maxItems
 }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const history = useHistory();
   
   // State
   const [reports, setReports] = useState<Report[]>([]);
@@ -244,7 +244,7 @@ const ReportList: React.FC<ReportListProps> = ({
       if (onEditReport) {
         onEditReport(newReport);
       } else {
-        navigate(`/reports/edit/${newReport.id}`);
+        history.push(`/reports/edit/${newReport.id}`);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to duplicate report');
@@ -255,7 +255,7 @@ const ReportList: React.FC<ReportListProps> = ({
   // Handle report sharing
   const handleShareReport = (report: Report) => {
     // Navigate to share page or open share dialog
-    navigate(`/reports/share/${report.id}`);
+    history.push(`/reports/share/${report.id}`);
   };
   
   // Format date for display
@@ -430,7 +430,7 @@ const ReportList: React.FC<ReportListProps> = ({
                           <IconButton
                             size="small"
                             color="primary"
-                            onClick={() => onViewReport ? onViewReport(report) : navigate(`/reports/view/${report.id}`)}
+                            onClick={() => onViewReport ? onViewReport(report) : history.push(`/reports/view/${report.id}`)}
                           >
                             <ViewIcon fontSize="small" />
                           </IconButton>
@@ -442,7 +442,7 @@ const ReportList: React.FC<ReportListProps> = ({
                             <IconButton
                               size="small"
                               color="primary"
-                              onClick={() => onEditReport ? onEditReport(report) : navigate(`/reports/edit/${report.id}`)}
+                              onClick={() => onEditReport ? onEditReport(report) : history.push(`/reports/edit/${report.id}`)}
                             >
                               <EditIcon fontSize="small" />
                             </IconButton>
@@ -488,7 +488,7 @@ const ReportList: React.FC<ReportListProps> = ({
                   <Button
                     variant="contained"
                     startIcon={<AddIcon />}
-                    onClick={onCreateReport || (() => navigate('/reports/create'))}
+                    onClick={onCreateReport || (() => history.push('/reports/create'))}
                     sx={{ mt: 2 }}
                   >
                     Create New Report

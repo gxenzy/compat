@@ -430,14 +430,14 @@ const AuditTableContainer: React.FC<AuditTableContainerProps> = ({
   const handleViewAudit = (auditId: string) => {
     console.log(`Viewing audit: ${auditId}`);
     setSelectedAuditId(auditId);
-    // In a real app, navigate to audit view page
+    // In a real app, history.push to audit view page
     handleMenuClose();
   };
   
   // Handle edit audit
   const handleEditAudit = (auditId: string) => {
     console.log(`Editing audit: ${auditId}`);
-    // In a real app, navigate to audit edit page
+    // In a real app, history.push to audit edit page
     handleMenuClose();
   };
   

@@ -1,6 +1,15 @@
 import axios from 'axios';
+import { apiConfig } from '../config/database';
+import api from './api';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+// API URL for fallback
+const API_URL = 'http://localhost:8000/api';
+
+// API URL for direct calls
+const DIRECT_API_URL = 'http://localhost:8000';
+
+console.log(`Compliance service using API instance with auth`);
+console.log(`Compliance service using direct endpoints for CREATE operations`);
 
 /**
  * Service for interacting with compliance verification endpoints
@@ -23,6 +32,11 @@ const complianceService = {
         calculationId,
         buildingType,
         projectType
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
       return response.data;
     } catch (error) {
@@ -70,10 +84,24 @@ const complianceService = {
    */
   getAllBuildingTypeStandards: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/building-standards/all`);
-      return response.data;
+      // Use the authenticated API instance
+      const response = await api.get('/compliance/building-standards/all');
+      console.log('Raw building standards data:', response.data);
+      
+      // Transform snake_case to camelCase
+      return response.data.map(item => ({
+        id: item.id,
+        buildingType: item.building_type,
+        standardType: item.standard_type,
+        standardCode: item.standard_code,
+        minimumValue: item.minimum_value,
+        maximumValue: item.maximum_value,
+        unit: item.unit,
+        description: item.description
+      }));
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting building standards:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
@@ -84,9 +112,41 @@ const complianceService = {
    */
   createBuildingTypeStandard: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/building-standards`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        building_type: data.buildingType,
+        standard_type: data.standardType,
+        standard_code: data.standardCode,
+        minimum_value: data.minimumValue,
+        maximum_value: data.maximumValue,
+        unit: data.unit,
+        description: data.description
+      };
+      
+      console.log('Sending transformed data to backend:', transformedData);
+      
+      // Direct POST to the non-API prefixed URL
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/building-standards`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Building standard created successfully, received:', response.data);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        buildingType: result.building_type,
+        standardType: result.standard_type,
+        standardCode: result.standard_code,
+        minimumValue: result.minimum_value,
+        maximumValue: result.maximum_value,
+        unit: result.unit,
+        description: result.description
+      };
     } catch (error) {
+      console.error('Error creating building standard:', error);
       throw error.response?.data || error;
     }
   },
@@ -99,8 +159,31 @@ const complianceService = {
    */
   updateBuildingTypeStandard: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/building-standards/${id}`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        building_type: data.buildingType,
+        standard_type: data.standardType,
+        standard_code: data.standardCode,
+        minimum_value: data.minimumValue,
+        maximum_value: data.maximumValue,
+        unit: data.unit,
+        description: data.description
+      };
+      
+      const response = await axios.put(`${API_URL}/compliance/building-standards/${id}`, transformedData);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        buildingType: result.building_type,
+        standardType: result.standard_type,
+        standardCode: result.standard_code,
+        minimumValue: result.minimum_value,
+        maximumValue: result.maximum_value,
+        unit: result.unit,
+        description: result.description
+      };
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -144,10 +227,24 @@ const complianceService = {
    */
   getAllProjectTypeStandards: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/project-standards/all`);
-      return response.data;
+      // Use the authenticated API instance
+      const response = await api.get('/compliance/project-standards/all');
+      console.log('Raw project standards data:', response.data);
+      
+      // Transform snake_case to camelCase
+      return response.data.map(item => ({
+        id: item.id,
+        projectType: item.project_type,
+        standardType: item.standard_type,
+        standardCode: item.standard_code,
+        minimumValue: item.minimum_value,
+        maximumValue: item.maximum_value,
+        unit: item.unit,
+        description: item.description
+      }));
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting project standards:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
@@ -158,9 +255,41 @@ const complianceService = {
    */
   createProjectTypeStandard: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/project-standards`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        project_type: data.projectType,
+        standard_type: data.standardType,
+        standard_code: data.standardCode,
+        minimum_value: data.minimumValue,
+        maximum_value: data.maximumValue,
+        unit: data.unit,
+        description: data.description
+      };
+      
+      console.log('Sending transformed data to backend:', transformedData);
+      
+      // Direct POST to the non-API prefixed URL
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/project-standards`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Project standard created successfully, received:', response.data);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        projectType: result.project_type,
+        standardType: result.standard_type,
+        standardCode: result.standard_code,
+        minimumValue: result.minimum_value,
+        maximumValue: result.maximum_value,
+        unit: result.unit,
+        description: result.description
+      };
     } catch (error) {
+      console.error('Error creating project standard:', error);
       throw error.response?.data || error;
     }
   },
@@ -173,8 +302,31 @@ const complianceService = {
    */
   updateProjectTypeStandard: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/project-standards/${id}`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        project_type: data.projectType,
+        standard_type: data.standardType,
+        standard_code: data.standardCode,
+        minimum_value: data.minimumValue,
+        maximum_value: data.maximumValue,
+        unit: data.unit,
+        description: data.description
+      };
+      
+      const response = await axios.put(`${API_URL}/compliance/project-standards/${id}`, transformedData);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        projectType: result.project_type,
+        standardType: result.standard_type,
+        standardCode: result.standard_code,
+        minimumValue: result.minimum_value,
+        maximumValue: result.maximum_value,
+        unit: result.unit,
+        description: result.description
+      };
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -222,10 +374,21 @@ const complianceService = {
    */
   getAllComplianceRecommendations: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/recommendations/all`);
-      return response.data;
+      const response = await api.get('/compliance/recommendations/all');
+      console.log('Raw recommendations data:', response.data);
+      
+      // Transform snake_case to camelCase
+      return response.data.map(item => ({
+        id: item.id,
+        ruleId: item.rule_id,
+        nonComplianceType: item.non_compliance_type,
+        recommendationText: item.recommendation_text,
+        priority: item.priority,
+        calculatorType: item.calculator_type
+      }));
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting compliance recommendations:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
@@ -236,9 +399,36 @@ const complianceService = {
    */
   createComplianceRecommendation: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/recommendations`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        rule_id: data.ruleId,
+        non_compliance_type: data.nonComplianceType,
+        recommendation_text: data.recommendationText,
+        priority: data.priority,
+        calculator_type: data.calculatorType
+      };
+      
+      console.log('Sending transformed data to backend:', transformedData);
+      
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/recommendations`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Recommendation created successfully, received:', response.data);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        ruleId: result.rule_id,
+        nonComplianceType: result.non_compliance_type,
+        recommendationText: result.recommendation_text,
+        priority: result.priority,
+        calculatorType: result.calculator_type
+      };
     } catch (error) {
+      console.error('Error creating compliance recommendation:', error);
       throw error.response?.data || error;
     }
   },
@@ -251,8 +441,27 @@ const complianceService = {
    */
   updateComplianceRecommendation: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/recommendations/${id}`, data);
-      return response.data;
+      // Transform camelCase to snake_case for backend
+      const transformedData = {
+        rule_id: data.ruleId,
+        non_compliance_type: data.nonComplianceType,
+        recommendation_text: data.recommendationText,
+        priority: data.priority,
+        calculator_type: data.calculatorType
+      };
+      
+      const response = await axios.put(`${API_URL}/compliance/recommendations/${id}`, transformedData);
+      
+      // Transform response back to camelCase
+      const result = response.data;
+      return {
+        id: result.id,
+        ruleId: result.rule_id,
+        nonComplianceType: result.non_compliance_type,
+        recommendationText: result.recommendation_text,
+        priority: result.priority,
+        calculatorType: result.calculator_type
+      };
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -292,7 +501,13 @@ const complianceService = {
     try {
       // Try to fetch from API first
       try {
-        const response = await axios.get('/api/compliance/rules', { params });
+        const response = await axios.get(`${API_URL}/compliance/rules`, { 
+          params,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
         return response.data;
       } catch (apiError) {
         console.warn('API fetch failed, using mock rules data:', apiError);

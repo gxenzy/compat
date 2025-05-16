@@ -31,7 +31,7 @@ import {
   Brightness7,
   KeyboardArrowUp,
 } from '@mui/icons-material';
-import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
 import NotificationCenter from './MainLayoutNotificationCenter';
@@ -62,14 +62,14 @@ interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = () => {
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState<null | HTMLElement>(null);
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const navigate = useNavigate();
+  const history = useHistory();
   const location = useLocation();
   const { user, logout } = useAuthContext();
   const { notifications, markAsRead } = useNotificationContext();
@@ -120,17 +120,25 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
 
   const handleLogout = () => {
     handleProfileMenuClose();
-    logout();
+    
+    // Remove token and user from localStorage immediately
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
+    
+    console.log('Logging out - localStorage tokens removed');
+    
+    // Don't attempt server communication - just redirect to login
+    history.push('/login');
   };
 
   const handleProfileClick = () => {
     handleProfileMenuClose();
-    navigate('/profile');
+    history.push('/profile');
   };
 
   const handleSettingsClick = () => {
     handleProfileMenuClose();
-    navigate('/settings');
+    history.push('/settings');
   };
 
   useEffect(() => {
@@ -162,6 +170,11 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
                           ('avatar' in user ? user.avatar : null));
   
   const userImageSrc = userProfileImage ? String(userProfileImage) : '';
+
+  // Handle navigation in v5 style
+  const handleNavigation = (path: string) => {
+    history.push(path);
+  };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -257,7 +270,7 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button 
                   size="small" 
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => handleNavigation('/dashboard')}
                   sx={{
                     minWidth: 'auto',
                     px: 2,
@@ -283,7 +296,7 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
                 
                 <Button 
                   size="small"
-                  onClick={() => navigate('/energy-audit')}
+                  onClick={() => handleNavigation('/energy-audit')}
                   sx={{
                     minWidth: 'auto',
                     px: 2,
@@ -320,7 +333,7 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
             </Box>
             
             {/* Notifications */}
-            <NotificationCenter onNavigate={navigate} />
+            <NotificationCenter onNavigate={handleNavigation} />
             
             {/* User Menu */}
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -455,7 +468,7 @@ const MainLayout: React.FC<MainLayoutProps> = () => {
           pl: 0,
           pr: 0
         }}>
-          <Outlet />
+          {children}
         </Box>
       </Main>
 

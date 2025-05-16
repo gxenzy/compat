@@ -3,9 +3,12 @@
  * It provides the NotificationCenter component
  */
 import React from 'react';
-import { NavigateFunction } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import BaseNotificationCenter, { Notification as ComponentNotification } from '../../NotificationCenter';
 import { useNotificationContext } from '../../../contexts/NotificationContext';
+
+// Define NavigateFunction type for v5 router
+export type NavigateFunction = (path: string) => void;
 
 // Define the props interface
 export interface NotificationCenterProps {

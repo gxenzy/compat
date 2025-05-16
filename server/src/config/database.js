@@ -1,27 +1,17 @@
 const mysql = require('mysql2/promise');
+const { Sequelize } = require('sequelize');
 const path = require('path');
 const dotenv = require('dotenv');
 const fs = require('fs');
 
-// Load environment variables
-const envPath = path.resolve(__dirname, '../../.env');
-console.log('Reading .env from:', envPath);
-try {
-  const envContents = fs.readFileSync(envPath, 'utf-8');
-  console.log('.env contents:\n', envContents);
-} catch (e) {
-  console.error('Could not read .env file:', e);
-}
-dotenv.config({ path: envPath });
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-// Log database connection info
 console.log('DB_HOST:', process.env.DB_HOST);
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASS:', process.env.DB_PASS);
 console.log('DB_NAME:', process.env.DB_NAME);
 
-// Database configuration
-const config = {
+// Create a pool of connections
+const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'sdmi',
   password: process.env.DB_PASS || 'SMD1SQLADM1N',
@@ -30,55 +20,74 @@ const config = {
   connectionLimit: 10,
   queueLimit: 0,
   multipleStatements: true // Enable multiple statements
+});
+
+// Create Sequelize instance
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'energyauditdb',
+  process.env.DB_USER || 'sdmi',
+  process.env.DB_PASS || 'SMD1SQLADM1N',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'mysql',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false
+  }
+);
+
+// Test the connection
+const testConnection = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
+  }
 };
 
-// Create the connection pool
-const pool = mysql.createPool(config);
+testConnection();
 
 // Export a function to get a connection from the pool
 const getConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log('Connected to MySQL database');
     return connection;
   } catch (error) {
-    console.error('Error connecting to MySQL database:', error);
+    console.error('Error getting connection from pool:', error);
     throw error;
   }
 };
 
-// Helper functions for database queries
-const query = async (text, params = []) => {
+// Export a query function for simpler queries
+const query = async (sql, params) => {
   try {
-    const start = Date.now();
-    const [rows] = await pool.query(text, params);
-    const duration = Date.now() - start;
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Executed query', { text, duration, rows: Array.isArray(rows) ? rows.length : 1 });
-    }
-    
+    const [rows] = await pool.query(sql, params);
     return rows;
   } catch (error) {
-    console.error('Query error:', error);
+    console.error('Error executing query:', error);
     throw error;
   }
 };
 
-// Transaction helper
+// Export a transaction function
 const transaction = async (callback) => {
-  const connection = await pool.getConnection();
-  
+  let connection;
   try {
+    connection = await getConnection();
     await connection.beginTransaction();
+    
     const result = await callback(connection);
+    
     await connection.commit();
     return result;
   } catch (error) {
-    await connection.rollback();
+    if (connection) {
+      await connection.rollback();
+    }
     throw error;
   } finally {
-    connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 };
 
@@ -90,7 +99,10 @@ async function runMigration(filename) {
     
     // Create a connection with multiple statements enabled for this specific operation
     const connection = await mysql.createConnection({
-      ...config,
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'sdmi',
+      password: process.env.DB_PASS || 'SMD1SQLADM1N',
+      database: process.env.DB_NAME || 'energyauditdb',
       multipleStatements: true
     });
     
@@ -179,5 +191,6 @@ module.exports = {
   pool,
   getConnection,
   query,
-  transaction
+  transaction,
+  sequelize
 }; 

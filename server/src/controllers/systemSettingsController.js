@@ -1,4 +1,46 @@
-const { pool } = require('../config/database');
+const { pool, query } = require('../config/database');
+const SystemSettings = require('../models/SystemSettings');
+
+// Create or ensure the system_settings table exists
+const initializeSystemSettings = async () => {
+  try {
+    // Force sync to create the table if it doesn't exist
+    await SystemSettings.sync();
+    
+    // Check if we have default settings
+    const count = await SystemSettings.count();
+    
+    // Add default settings if none exist
+    if (count === 0) {
+      console.log('Creating default system settings...');
+      const defaultSettings = [
+        { setting_key: 'siteName', setting_value: 'Energy Audit System', description: 'Site name' },
+        { setting_key: 'maxUsers', setting_value: '100', description: 'Maximum number of users' }, 
+        { setting_key: 'sessionTimeout', setting_value: '30', description: 'Session timeout in minutes' },
+        { setting_key: 'maintenanceMode', setting_value: 'false', description: 'Maintenance mode' },
+        { setting_key: 'allowRegistration', setting_value: 'false', description: 'Allow user registration' },
+        { setting_key: 'registrationEnabled', setting_value: 'false', description: 'User registration enabled' },
+        { setting_key: 'defaultRole', setting_value: 'viewer', description: 'Default role for new users' },
+        { setting_key: 'passwordPolicy.minLength', setting_value: '8', description: 'Minimum password length' },
+        { setting_key: 'passwordPolicy.requireSpecialChar', setting_value: 'true', description: 'Require special character in password' },
+        { setting_key: 'passwordPolicy.requireNumber', setting_value: 'true', description: 'Require number in password' },
+        { setting_key: 'passwordPolicy.requireUppercase', setting_value: 'true', description: 'Require uppercase letter in password' },
+        { setting_key: 'passwordPolicy.requireLowercase', setting_value: 'true', description: 'Require lowercase letter in password' },
+        { setting_key: 'maxLoginAttempts', setting_value: '5', description: 'Maximum login attempts before lockout' },
+      ];
+      
+      // Create default settings
+      await SystemSettings.bulkCreate(defaultSettings);
+    }
+    
+    console.log('System settings initialized');
+  } catch (error) {
+    console.error('Error initializing system settings:', error);
+  }
+};
+
+// Initialize system settings on module load
+initializeSystemSettings();
 
 /**
  * Get system settings
@@ -8,7 +50,7 @@ const { pool } = require('../config/database');
 const getSystemSettings = async (req, res) => {
   try {
     // Get settings from database
-    const [settingsRows] = await pool.query('SELECT * FROM system_settings');
+    const settingsRows = await SystemSettings.findAll();
     
     if (!settingsRows.length) {
       return res.status(404).json({ message: 'System settings not found' });
@@ -95,52 +137,43 @@ const getSystemSettings = async (req, res) => {
 const updateSystemSettings = async (req, res) => {
   try {
     const settings = req.body;
-    const connection = await pool.getConnection();
     
-    try {
-      await connection.beginTransaction();
-      
-      // Prepare batch insert/update operations
-      const operations = [];
-      
-      // Flat properties
-      for (const [key, value] of Object.entries(settings)) {
-        // Skip nested objects
-        if (typeof value !== 'object' || value === null) {
-          operations.push([key, value?.toString()]);
-        }
+    // Prepare batch insert/update operations
+    const operations = [];
+    
+    // Flat properties
+    for (const [key, value] of Object.entries(settings)) {
+      // Skip nested objects
+      if (typeof value !== 'object' || value === null) {
+        operations.push({
+          setting_key: key, 
+          setting_value: value?.toString()
+        });
       }
-      
-      // Handle password policy separately
-      if (settings.passwordPolicy) {
-        for (const [key, value] of Object.entries(settings.passwordPolicy)) {
-          operations.push([`passwordPolicy.${key}`, value?.toString()]);
-        }
-      }
-      
-      // Execute batch operations
-      if (operations.length > 0) {
-        await Promise.all(operations.map(([key, value]) => 
-          connection.query(
-            'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
-            [key, value]
-          )
-        ));
-      }
-      
-      await connection.commit();
-      
-      // Return updated settings
-      return res.json({ 
-        message: 'Settings updated successfully',
-        ...settings 
-      });
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
     }
+    
+    // Handle password policy separately
+    if (settings.passwordPolicy) {
+      for (const [key, value] of Object.entries(settings.passwordPolicy)) {
+        operations.push({
+          setting_key: `passwordPolicy.${key}`, 
+          setting_value: value?.toString()
+        });
+      }
+    }
+    
+    // Execute batch operations
+    if (operations.length > 0) {
+      for (const op of operations) {
+        await SystemSettings.upsert(op);
+      }
+    }
+    
+    // Return updated settings
+    return res.json({ 
+      message: 'Settings updated successfully',
+      ...settings 
+    });
   } catch (error) {
     console.error('Error updating system settings:', error);
     return res.status(500).json({ message: 'Error updating system settings' });

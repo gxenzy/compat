@@ -94,7 +94,11 @@ export const getSortedFloors = (): FloorPlanData[] => {
  */
 export const getFloorPlanImage = (floorId: string, viewMode: FloorPlanViewMode = 'lighting'): string => {
   if (floorId in FLOORS) {
-    return viewMode === 'lighting' ? FLOORS[floorId].lighting : FLOORS[floorId].power;
+    console.log(`Getting image for ${floorId} in ${viewMode} mode`);
+    // Standardize the path format to ensure correct loading
+    const path = viewMode === 'lighting' ? FLOORS[floorId].lighting : FLOORS[floorId].power;
+    // Make sure the path doesn't have double slashes
+    return path.startsWith('/') ? path : `/${path}`;
   }
   return FALLBACK_FLOOR_PLAN;
 };

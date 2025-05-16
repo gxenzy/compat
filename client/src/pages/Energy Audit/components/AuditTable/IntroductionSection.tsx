@@ -35,25 +35,20 @@ const IntroductionSection: React.FC<IntroductionSectionProps> = ({ selectedAudit
           <Typography variant="subtitle2" fontWeight="bold">Date</Typography>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DesktopDatePicker
-              inputFormat="MM/dd/yyyy"
+              format="MM/dd/yyyy"
               value={selectedAudit.date ? new Date(selectedAudit.date) : null}
               onChange={newValue => {
                 if (newValue instanceof Date && !isNaN(newValue.getTime())) {
                   updateAuditField('date', '', '', newValue.toISOString());
                 }
               }}
-              renderInput={params => (
-                <TextField
-                  {...params}
-                  size="small"
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      backgroundColor: 'white',
-                      height: '32px',
-                    },
-                  }}
-                />
-              )}
+              slotProps={{ textField: params => ({ ...params, size: 'small' }) }}
+              sx={{
+                '& .MuiInputBase-root': {
+                  backgroundColor: 'white',
+                  height: '32px',
+                },
+              }}
             />
           </LocalizationProvider>
         </Box>

@@ -5,11 +5,11 @@ import {
   Container,
   Typography,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { Home as HomeIcon } from '@mui/icons-material';
 
 const NotFound: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
 
   return (
     <Box
@@ -56,7 +56,7 @@ const NotFound: React.FC = () => {
             variant="contained"
             size="large"
             startIcon={<HomeIcon />}
-            onClick={() => navigate('/')}
+            onClick={() => history.push('/')}
             sx={{
               px: 4,
               py: 1.5,

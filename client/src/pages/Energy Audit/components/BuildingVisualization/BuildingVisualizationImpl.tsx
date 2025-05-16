@@ -28,7 +28,9 @@ import {
   ListItemText,
   FormControlLabel,
   Switch,
-  TextField
+  TextField,
+  Stack,
+  Toolbar
 } from '@mui/material';
 import {
   ZoomIn,
@@ -141,6 +143,7 @@ const BuildingVisualizationImpl: React.FC = () => {
   const [dragPosition, setDragPosition] = useState<string | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
   const [detectionMethod, setDetectionMethod] = useState<DetectionMethod>('opencv');
+  const [viewOrientation, setViewOrientation] = useState<'landscape' | 'portrait'>('landscape');
   
   // Context for building data
   const {
@@ -187,12 +190,35 @@ const BuildingVisualizationImpl: React.FC = () => {
   
   // Update floor plan image when floor or view mode changes
   useEffect(() => {
-    const imagePath = getFloorPlanImage(selectedFloor, viewMode);
+    // Add public URL prefix to ensure proper path resolution
+    const imagePath = process.env.PUBLIC_URL + getFloorPlanImage(selectedFloor, viewMode);
+    console.log('Setting floor plan image path:', imagePath);
     setFloorPlanImage(imagePath);
+    
+    // Load image to determine orientation before rendering
+    const img = document.createElement('img');
+    img.onload = () => {
+      // Force landscape orientation by setting a CSS class
+      const isLandscape = img.width > img.height;
+      console.log('Image loaded in effect with dimensions:', img.width, 'x', img.height);
+      console.log('Setting orientation to:', isLandscape ? 'landscape' : 'portrait');
+      setViewOrientation(isLandscape ? 'landscape' : 'portrait');
     
     // Reset any detected rooms when floor changes
     setDetectedRooms([]);
     setDetectionConfidence(0);
+      
+      // Reset zoom and pan to ensure the image is visible
+      setZoomLevel(1.0);
+      setPanOffset({ x: 0, y: 0 });
+    };
+    
+    // Use a proper error handler with the correct type
+    img.onerror = () => {
+      console.error('Failed to load image:', imagePath);
+    };
+    
+    img.src = imagePath;
     
     // Notify context of floor change
     setContextSelectedFloor(selectedFloor);
@@ -333,148 +359,210 @@ const BuildingVisualizationImpl: React.FC = () => {
     }
   };
   
-  // Handle room drag start
+  // Handle drag start for rooms
   const handleRoomDragStart = (roomId: string, e: React.MouseEvent) => {
-    if (!isEditMode) return;
+    e.stopPropagation();
     
-    e.preventDefault();
+    // Save the starting position for calculating drag delta
     setDraggedRoomId(roomId);
-    
-    // Remember the starting position for accurate movement calculation
     setDragStartPos({
       x: e.clientX,
       y: e.clientY
     });
-  };
   
-  // Handle room drag move
-  const handleRoomDragMove = (e: React.MouseEvent) => {
-    if (!draggedRoomId && !draggedHotspotId) return;
+    // Set drag position to center to avoid jumping
+    setDragPosition('center');
     
+    // Prevent default behavior to avoid text selection
     e.preventDefault();
     
-    // Get mouse movement delta
-    const deltaX = e.clientX - dragStartPos.x;
-    const deltaY = e.clientY - dragStartPos.y;
+    // Update cursor to indicate dragging
+    document.body.style.cursor = 'move';
+  };
+  
+  // Handle drag move for rooms
+  const handleRoomDragMove = (e: React.MouseEvent) => {
+    if (!draggedRoomId) return;
     
-    // Adjust for zoom level
-    const adjustedDeltaX = deltaX / zoomLevel;
-    const adjustedDeltaY = deltaY / zoomLevel;
+    // Calculate position delta, taking zoom level into account
+    const deltaX = (e.clientX - dragStartPos.x) / zoomLevel;
+    const deltaY = (e.clientY - dragStartPos.y) / zoomLevel;
     
-    if (draggedRoomId) {
-      // Update room position
+    // Update room coordinates
       const updatedRooms = roomData.map(room => {
         if (room.id === draggedRoomId) {
+        // Create a new room object with updated coordinates
           return {
             ...room,
             coords: {
               ...room.coords,
-              x: room.coords.x + adjustedDeltaX,
-              y: room.coords.y + adjustedDeltaY
+            x: room.coords.x + deltaX,
+            y: room.coords.y + deltaY
             }
           };
         }
         return room;
       });
       
+    // Update local state first for smooth dragging
       setRoomData(updatedRooms);
-    } else if (draggedHotspotId && dragPosition) {
-      // Resize the room using hotspot handles
-      const roomToResize = roomData.find(room => room.id === draggedHotspotId);
-      
-      if (roomToResize) {
-        const newCoords = { ...roomToResize.coords };
+    
+    // Update context with the new position
+    const updatedRoom = updatedRooms.find(room => room.id === draggedRoomId);
+    if (updatedRoom) {
+      updateRoomCoordinates(selectedFloor, draggedRoomId, updatedRoom.coords);
+    }
+    
+    // Reset drag start position for continuous dragging
+    setDragStartPos({
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
+  
+  // Handle drag end for rooms
+  const handleRoomDragEnd = () => {
+    setDraggedRoomId(null);
+    setDragStartPos({ x: 0, y: 0 });
+    setDragPosition(null);
+    
+    // Reset cursor
+    document.body.style.cursor = 'default';
+    
+    // Save the updated room positions
+    saveFloorData();
+  };
+  
+  // Handle drag start for resizing rooms via hotspots
+  const handleHotspotDragStart = (roomId: string, position: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    setDraggedHotspotId(roomId);
+    setDragPosition(position);
+    setDragStartPos({
+      x: e.clientX,
+      y: e.clientY
+    });
+    
+    // Set cursor based on handle position
+    const cursorMap: Record<string, string> = {
+      'nw': 'nwse-resize',
+      'n': 'ns-resize',
+      'ne': 'nesw-resize',
+      'e': 'ew-resize',
+      'se': 'nwse-resize',
+      's': 'ns-resize',
+      'sw': 'nesw-resize',
+      'w': 'ew-resize'
+    };
+    document.body.style.cursor = cursorMap[position] || 'move';
+  };
+  
+  // Handle drag move for resizing rooms
+  const handleHotspotDragMove = (e: React.MouseEvent) => {
+    if (!draggedHotspotId || !dragPosition) return;
+    
+    // Calculate delta movement, accounting for zoom level
+    const deltaX = (e.clientX - dragStartPos.x) / zoomLevel;
+    const deltaY = (e.clientY - dragStartPos.y) / zoomLevel;
+    
+    // Find the room being resized
+    const room = roomData.find(r => r.id === draggedHotspotId);
+    if (!room) return;
+    
+    // Create a copy of the room's coordinates
+    const newCoords = { ...room.coords };
         
-        // Different behavior based on which handle is dragged
+    // Update coordinates based on which handle is being dragged
         switch (dragPosition) {
-          case 'nw': // Top-left
-            newCoords.width += (newCoords.x - (newCoords.x + adjustedDeltaX));
-            newCoords.height += (newCoords.y - (newCoords.y + adjustedDeltaY));
-            newCoords.x += adjustedDeltaX;
-            newCoords.y += adjustedDeltaY;
+      case 'nw': // Northwest
+        newCoords.x += deltaX;
+        newCoords.y += deltaY;
+        newCoords.width -= deltaX;
+        newCoords.height -= deltaY;
             break;
-          case 'ne': // Top-right
-            newCoords.width += adjustedDeltaX;
-            newCoords.height += (newCoords.y - (newCoords.y + adjustedDeltaY));
-            newCoords.y += adjustedDeltaY;
+      case 'n': // North
+        newCoords.y += deltaY;
+        newCoords.height -= deltaY;
             break;
-          case 'sw': // Bottom-left
-            newCoords.width += (newCoords.x - (newCoords.x + adjustedDeltaX));
-            newCoords.height += adjustedDeltaY;
-            newCoords.x += adjustedDeltaX;
+      case 'ne': // Northeast
+        newCoords.y += deltaY;
+        newCoords.width += deltaX;
+        newCoords.height -= deltaY;
             break;
-          case 'se': // Bottom-right
-            newCoords.width += adjustedDeltaX;
-            newCoords.height += adjustedDeltaY;
+      case 'e': // East
+        newCoords.width += deltaX;
+        break;
+      case 'se': // Southeast
+        newCoords.width += deltaX;
+        newCoords.height += deltaY;
+        break;
+      case 's': // South
+        newCoords.height += deltaY;
+        break;
+      case 'sw': // Southwest
+        newCoords.x += deltaX;
+        newCoords.width -= deltaX;
+        newCoords.height += deltaY;
+        break;
+      case 'w': // West
+        newCoords.x += deltaX;
+        newCoords.width -= deltaX;
             break;
         }
         
-        // Enforce minimum dimensions
-        newCoords.width = Math.max(50, newCoords.width);
-        newCoords.height = Math.max(50, newCoords.height);
-        
-        // Update all rooms
-        const updatedRooms = roomData.map(room => {
-          if (room.id === draggedHotspotId) {
-            return {
+    // Ensure minimum dimensions to prevent collapse
+    const MIN_SIZE = 20;
+    if (newCoords.width < MIN_SIZE) {
+      if (['nw', 'w', 'sw'].includes(dragPosition)) {
+        newCoords.x = newCoords.x - (MIN_SIZE - newCoords.width);
+      }
+      newCoords.width = MIN_SIZE;
+    }
+    
+    if (newCoords.height < MIN_SIZE) {
+      if (['nw', 'n', 'ne'].includes(dragPosition)) {
+        newCoords.y = newCoords.y - (MIN_SIZE - newCoords.height);
+      }
+      newCoords.height = MIN_SIZE;
+    }
+    
+    // Create the updated room with new coordinates
+    const updatedRoom = {
               ...room,
               coords: newCoords,
-              // Update physical dimensions based on pixel changes
-              // Assuming 50px = 1m for conversion
-              length: newCoords.width / 50,
-              width: newCoords.height / 50,
-              area: (newCoords.width / 50) * (newCoords.height / 50)
-            };
-          }
-          return room;
-        });
-        
-        setRoomData(updatedRooms);
-      }
-    }
+      // Recalculate room measurements
+      length: newCoords.width / 50, // Convert pixels to meters
+      width: newCoords.height / 50,  // Convert pixels to meters
+      area: (newCoords.width / 50) * (newCoords.height / 50) // Area in square meters
+    };
     
-    // Update drag start position for next move
+    // Update local state for smooth resizing
+    const updatedRooms = roomData.map(r => r.id === draggedHotspotId ? updatedRoom : r);
+        setRoomData(updatedRooms);
+    
+    // Update context
+    updateRoomCoordinates(selectedFloor, draggedHotspotId, updatedRoom.coords);
+    
+    // Reset drag start position for continuous dragging
     setDragStartPos({
       x: e.clientX,
       y: e.clientY
     });
   };
   
-  // Handle room drag end
-  const handleRoomDragEnd = () => {
-    if (draggedRoomId) {
-      // Save updated position to context
-      const updatedRoom = roomData.find(r => r.id === draggedRoomId);
-      if (updatedRoom) {
-        updateRoomCoordinates(selectedFloor, draggedRoomId, updatedRoom.coords);
-      }
-    } else if (draggedHotspotId) {
-      // Save updated dimensions to context
-      const updatedRoom = roomData.find(r => r.id === draggedHotspotId);
-      if (updatedRoom) {
-        updateRoom(selectedFloor, draggedHotspotId, updatedRoom);
-      }
-    }
-    
-    // Reset drag state
-    setDraggedRoomId(null);
+  // Handle drag end for resizing rooms
+  const handleHotspotDragEnd = () => {
     setDraggedHotspotId(null);
     setDragPosition(null);
-  };
-  
-  // Handle hotspot drag start
-  const handleHotspotDragStart = (hotspotId: string, position: string, e: React.MouseEvent) => {
-    if (!isEditMode) return;
+    setDragStartPos({ x: 0, y: 0 });
     
-    e.preventDefault();
-    setDraggedHotspotId(hotspotId);
-    setDragPosition(position);
+    // Reset cursor
+    document.body.style.cursor = 'default';
     
-    // Remember the starting position
-    setDragStartPos({
-      x: e.clientX,
-      y: e.clientY
-    });
+    // Save changes to persistent storage
+    saveFloorData();
   };
   
   // Handle pan start
@@ -999,98 +1087,192 @@ const BuildingVisualizationImpl: React.FC = () => {
     return room.compliance || 0;
   };
   
-  // Add missing hotspot handler functions
-  const handleHotspotDragMove = (e: React.MouseEvent) => {
-    if (!draggedHotspotId || !dragPosition) return;
-    
-    e.preventDefault();
-    
-    // Calculate delta from drag start
-    const deltaX = e.clientX - dragStartPos.x;
-    const deltaY = e.clientY - dragStartPos.y;
-    
-    // Find the room being resized
-    const room = roomData.find(r => r.id === draggedHotspotId);
-    if (!room) return;
-    
-    // Update room dimensions based on drag position
-    const updatedRoom = { ...room };
-    
-    // Adjust coordinates based on drag position
-    switch (dragPosition) {
-      case 'nw': // Northwest: adjust x, y, width and height
-        updatedRoom.coords.x = room.coords.x + deltaX;
-        updatedRoom.coords.y = room.coords.y + deltaY;
-        updatedRoom.coords.width = room.coords.width - deltaX;
-        updatedRoom.coords.height = room.coords.height - deltaY;
-        break;
-      case 'ne': // Northeast: adjust y, width and height
-        updatedRoom.coords.y = room.coords.y + deltaY;
-        updatedRoom.coords.width = room.coords.width + deltaX;
-        updatedRoom.coords.height = room.coords.height - deltaY;
-        break;
-      case 'sw': // Southwest: adjust x, width and height
-        updatedRoom.coords.x = room.coords.x + deltaX;
-        updatedRoom.coords.width = room.coords.width - deltaX;
-        updatedRoom.coords.height = room.coords.height + deltaY;
-        break;
-      case 'se': // Southeast: adjust width and height
-        updatedRoom.coords.width = room.coords.width + deltaX;
-        updatedRoom.coords.height = room.coords.height + deltaY;
-        break;
-    }
-    
-    // Update room dimensions in state
-    updateRoom(selectedFloor, room.id, updatedRoom);
-    
-    // Update drag start position for next move
-    setDragStartPos({
-      x: e.clientX,
-      y: e.clientY
-    });
-  };
-  
-  const handleHotspotDragEnd = () => {
-    setDraggedHotspotId(null);
-    setDragPosition(null);
-  };
-  
   return (
-    <Box ref={containerRef} sx={{ height: '100%', width: '100%', position: 'relative' }}>
-      <Typography variant="h5" gutterBottom>
-        Building Visualization
-      </Typography>
-      
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="body1" paragraph>
-          Visualize and analyze building floor plans for energy audit purposes. 
-          You can detect rooms automatically, edit their properties, and analyze energy consumption.
-        </Typography>
-        
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Tab navigation */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="building visualization tabs">
           <Tab label="Floor Plan" />
           <Tab label="Energy Analysis" />
-          <Tab label="Lighting Simulation" />
         </Tabs>
-      </Paper>
+      </Box>
+
+      {/* Floor plan control panel */}
+      {activeTab === 0 && (
+        <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="floor-select-label">Floor</InputLabel>
+                <Select
+                  labelId="floor-select-label"
+                  value={selectedFloor}
+                  label="Floor"
+                  onChange={handleFloorChange}
+                >
+                  {getFloorOptions().map((floor) => (
+                    <MenuItem key={floor.value} value={floor.value}>
+                      {floor.label}
+        </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+                </Grid>
+            <Grid item xs={12} md={9}>
+              <ButtonGroup size="small" variant="outlined">
+                <Tooltip title="Zoom In">
+                  <IconButton onClick={handleZoomIn}>
+                    <ZoomIn />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Zoom Out">
+                  <IconButton onClick={handleZoomOut}>
+                    <ZoomOut />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Reset View">
+                  <IconButton onClick={handleFitToView}>
+                    <Refresh />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={isPanMode ? "Exit Pan Mode" : "Pan Mode"}>
+                  <IconButton 
+                    onClick={togglePanMode} 
+                    color={isPanMode ? "primary" : "default"}
+                  >
+                    <PanTool />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={showGridLines ? "Hide Grid" : "Show Grid"}>
+                  <IconButton 
+                    onClick={() => setShowGridLines(!showGridLines)} 
+                    color={showGridLines ? "primary" : "default"}
+                  >
+                    {showGridLines ? <GridOn /> : <GridOff />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={showLabels ? "Hide Labels" : "Show Labels"}>
+                  <IconButton 
+                    onClick={() => setShowLabels(!showLabels)} 
+                    color={showLabels ? "primary" : "default"}
+                  >
+                    {showLabels ? <Label /> : <LabelOff />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={isMeasurementActive ? "Exit Measurement" : "Measure Distance"}>
+                  <IconButton 
+                    onClick={toggleMeasurementTool} 
+                    color={isMeasurementActive ? "primary" : "default"}
+                  >
+                    <Straighten />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={isEditMode ? "Exit Edit Mode" : "Edit Rooms"}>
+                  <IconButton 
+                    onClick={toggleEditMode} 
+                    color={isEditMode ? "primary" : "default"}
+                  >
+                    <Edit />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Detect Rooms">
+                  <IconButton onClick={handleDetectRooms} disabled={isProcessingImage}>
+                    <Search />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Save Changes">
+                  <IconButton onClick={saveFloorData} disabled={isSaving}>
+                    <Save />
+                  </IconButton>
+                </Tooltip>
+              </ButtonGroup>
+                </Grid>
+              </Grid>
+        </Box>
+      )}
+          
+      {/* Main content area */}
+      <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
+        {/* Floor plan view */}
+        {activeTab === 0 && (
+          <Box sx={{ height: '100%', position: 'relative' }}>
+            <FloorPlanWrapper
+                    floorPlanImage={floorPlanImage}
+                    roomData={roomData}
+                    detectedRooms={detectedRooms}
+                    nonCompliantAreas={nonCompliantAreas}
+                    isProcessingImage={isProcessingImage}
+                    showGridLines={showGridLines}
+                    showLabels={showLabels}
+                    zoomLevel={zoomLevel}
+                    panOffset={panOffset}
+                    isPanMode={isPanMode}
+                    detectionConfidence={detectionConfidence}
+                    viewMode={viewMode}
+                    isEditMode={isEditMode}
+              selectedRoom={selectedRoom ? selectedRoom as any : null}
+                    onRoomClick={handleRoomClick}
+              onSelectRoom={setSelectedRoom}
+              onApplyDetections={handleApplyDetectedRooms}
+                    onRoomDragStart={handleRoomDragStart}
+                    onRoomDragMove={handleRoomDragMove}
+                    onRoomDragEnd={handleRoomDragEnd}
+                    onEditMenuOpen={handleEditMenuOpen}
+                    onHotspotDragStart={handleHotspotDragStart}
+                    onHotspotDragMove={handleHotspotDragMove}
+                    onHotspotDragEnd={handleHotspotDragEnd}
+                    onDelete={handleDeleteRoom}
+              onPanStart={handlePanStart}
+              onPanMove={handlePanMove}
+              onPanEnd={handlePanEnd}
+                    isMeasurementToolActive={isMeasurementActive}
+                    measurementState={measurementState}
+                    handleMeasurementStart={handleMeasurementStart}
+                    handleMeasurementMove={handleMeasurementMove}
+                    handleMeasurementEnd={handleMeasurementEnd}
+              viewOrientation={viewOrientation}
+                  />
+                </Box>
+        )}
+          
+        {/* Energy analysis view */}
+          {activeTab === 1 && (
+            <EnergyAnalysisTab
+              roomData={roomData as any}
+            loadSchedules={[]}
+            selectedTimeRange="monthly"
+            onTimeRangeChange={(e) => {}}
+            floorId={selectedFloor}
+            onRoomSelect={handleRoomClick}
+            />
+          )}
+      </Box>
       
-      <Snackbar 
-        open={notification.open} 
-        autoHideDuration={6000} 
+      {/* Room editor dialog */}
+      <RoomDialog
+        open={roomEditorOpen}
+        onClose={() => setRoomEditorOpen(false)}
+        room={selectedRoom as any}
+        onSave={handleSaveRoom}
+        floorId={selectedFloor}
+      />
+
+      {/* Notification snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
         onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseNotification} 
-          severity={notification.severity} 
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
           variant="filled"
-          sx={{ width: '100%' }}
         >
           {notification.message}
         </Alert>
       </Snackbar>
-      
-      {/* Popup menu for room editing */}
+
+      {/* Room context menu */}
       <Menu
         anchorEl={editMenuAnchorEl}
         open={Boolean(editMenuAnchorEl)}
@@ -1102,307 +1284,16 @@ const BuildingVisualizationImpl: React.FC = () => {
           </ListItemIcon>
           <ListItemText>Edit Room</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => editMenuRoomId && handleDeleteRoom(editMenuRoomId)}>
+        <MenuItem onClick={() => {
+          handleDeleteRoom(editMenuRoomId || '');
+          handleEditMenuClose();
+        }}>
           <ListItemIcon>
-            <DeleteOutline fontSize="small" color="error" />
+            <DeleteOutline fontSize="small" />
           </ListItemIcon>
           <ListItemText>Delete Room</ListItemText>
         </MenuItem>
       </Menu>
-      
-      {/* Room Properties Dialog */}
-      {roomEditorOpen && selectedRoom && (
-        <RoomEditor
-          open={roomEditorOpen}
-          room={selectedRoom as any}
-          onClose={() => setRoomEditorOpen(false)}
-          onSave={(room: any) => handleSaveRoom(room)}
-          onDelete={handleDeleteRoom}
-          isNewRoom={isNewRoom}
-        />
-      )}
-      
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : error ? (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      ) : (
-        <>
-      {activeTab === 0 && (
-        <Box>
-              {/* Visualization Controls */}
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={8}>
-                  <VisualizationControls
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    selectedFloor={selectedFloor}
-                    handleFloorChange={handleFloorChange}
-                    isEditMode={isEditMode}
-                    toggleEditMode={toggleEditMode}
-                    showGridLines={showGridLines}
-                    setShowGridLines={setShowGridLines}
-                    showLabels={showLabels}
-                    setShowLabels={setShowLabels}
-                    isPanMode={isPanMode}
-                    setIsPanMode={togglePanMode}
-                    handleDetectRooms={handleDetectRooms}
-                    handleResetRoomPositions={handleResetRoomPositions}
-                    handleFitToView={handleFitToView}
-                    handleSynchronizeData={saveFloorData}
-                    handleZoomIn={handleZoomIn}
-                    handleZoomOut={handleZoomOut}
-                    handleAddRoom={handleAddNewRoom}
-                    zoomLevel={zoomLevel}
-                    isSaving={isSaving}
-                    isProcessingImage={isProcessingImage}
-                    floorOptions={getFloorOptions()}
-                    isMeasurementToolActive={isMeasurementActive}
-                    setIsMeasurementToolActive={toggleMeasurementTool}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <DetectionMethodSelector
-                    value={detectionMethod}
-                    onChange={setDetectionMethod}
-                    disabled={isProcessingImage}
-                  />
-                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleDetectRooms}
-                      disabled={isProcessingImage}
-                      startIcon={<Search />}
-                      fullWidth
-                    >
-                      {isProcessingImage ? 'Detecting Rooms...' : 'Detect Rooms'}
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-          
-          {/* Floor Plan Visualization */}
-              <Paper sx={{ p: 2, mb: 3, position: 'relative' }}>
-                <Box 
-                  ref={containerRef} 
-                  sx={{ 
-                    position: 'relative', 
-                    height: { xs: '400px', sm: '500px', md: '600px', lg: '70vh' },
-                    minHeight: '400px',
-                    maxHeight: '80vh',
-                    overflow: 'hidden',
-                    boxSizing: 'border-box',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                >
-                  <FloorPlanVisualization
-                    floorPlanImage={floorPlanImage}
-                    roomData={roomData}
-                    detectedRooms={detectedRooms}
-                    nonCompliantAreas={nonCompliantAreas}
-                    isProcessingImage={isProcessingImage}
-                    showGridLines={showGridLines}
-                    showLabels={showLabels}
-                    zoomLevel={zoomLevel}
-                    panOffset={panOffset}
-                    isPanMode={isPanMode}
-                    onPanStart={handlePanStart}
-                    onPanMove={handlePanMove}
-                    onPanEnd={handlePanEnd}
-                    detectionConfidence={detectionConfidence}
-                    viewMode={viewMode}
-                    isEditMode={isEditMode}
-                    onRoomClick={handleRoomClick}
-                    onRoomDragStart={handleRoomDragStart}
-                    onRoomDragMove={handleRoomDragMove}
-                    onRoomDragEnd={handleRoomDragEnd}
-                    onEditMenuOpen={handleEditMenuOpen}
-                    onHotspotDragStart={handleHotspotDragStart}
-                    onHotspotDragMove={handleHotspotDragMove}
-                    onHotspotDragEnd={handleHotspotDragEnd}
-                    onDelete={handleDeleteRoom}
-                    onApplyDetections={handleApplyDetectedRooms}
-                    selectedRoom={selectedRoom}
-                    onSelectRoom={(room) => setSelectedRoom(room)}
-                    isMeasurementToolActive={isMeasurementActive}
-                    measurementState={measurementState}
-                    handleMeasurementStart={handleMeasurementStart}
-                    handleMeasurementMove={handleMeasurementMove}
-                    handleMeasurementEnd={handleMeasurementEnd}
-                  />
-                </Box>
-              </Paper>
-          
-          {/* Room Details Section */}
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Room Details
-                    </Typography>
-                    
-                    {selectedRoomId && roomData.find(room => room.id === selectedRoomId) ? (
-                      (() => {
-                        const room = roomData.find(room => room.id === selectedRoomId)!;
-                        return (
-                          <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                              <Typography variant="subtitle2">Name</Typography>
-                              <Typography variant="body2">{room.name}</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                              <Typography variant="subtitle2">Type</Typography>
-                              <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{room.roomType}</Typography>
-                            </Grid>
-                            <Grid item xs={4}>
-                              <Typography variant="subtitle2">Length</Typography>
-                              <Typography variant="body2">{room.length?.toFixed(2) || '0.00'} m</Typography>
-                            </Grid>
-                            <Grid item xs={4}>
-                              <Typography variant="subtitle2">Width</Typography>
-                              <Typography variant="body2">{room.width?.toFixed(2) || '0.00'} m</Typography>
-                            </Grid>
-                            <Grid item xs={4}>
-                              <Typography variant="subtitle2">Area</Typography>
-                              <Typography variant="body2">{room.area.toFixed(2)} m²</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Divider sx={{ my: 1 }} />
-                            </Grid>
-                            <Grid item xs={6}>
-                              <Typography variant="subtitle2">Required Illuminance</Typography>
-                              <Typography variant="body2">{room.requiredLux} lux</Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                              <Typography variant="subtitle2">Compliance</Typography>
-                              <Typography 
-                                variant="body2" 
-                                color={
-                                  getRoomCompliance(room) >= 90 ? 'success.main' : 
-                                  getRoomCompliance(room) >= 70 ? 'warning.main' : 
-                                  'error.main'
-                                }
-                                fontWeight="bold"
-                              >
-                                {getRoomCompliance(room)}%
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Button 
-                                size="small" 
-                                variant="outlined"
-                                onClick={() => {
-                                  setIsNewRoom(false);
-                                  setRoomEditorOpen(true);
-                                }}
-                                startIcon={<Edit />}
-                              >
-                                Edit Room
-                              </Button>
-                            </Grid>
-                          </Grid>
-                        );
-                      })()
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No room selected. Click on a room to view details.
-                      </Typography>
-                    )}
-                  </Paper>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Floor Information
-                    </Typography>
-                    
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">Floor</Typography>
-                        <Typography variant="body2">
-                          {getFloorOptions().find(f => f.value === selectedFloor)?.label || selectedFloor}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">View Mode</Typography>
-                        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                          {viewMode}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">Room Count</Typography>
-                        <Typography variant="body2">
-                          {roomData.length} rooms
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="subtitle2">Total Floor Area</Typography>
-                        <Typography variant="body2">
-                          {roomData.reduce((sum, room) => sum + room.area, 0).toFixed(2)} m²
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={12}>
-                        <Divider sx={{ my: 1 }} />
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                          startIcon={<Add />}
-                          onClick={handleAddNewRoom}
-                          disabled={!isEditMode}
-                        >
-                          Add New Room
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-          
-          {activeTab === 1 && (
-            <EnergyAnalysisTab
-              floorId={selectedFloor}
-              roomData={roomData as any}
-              onRoomSelect={(roomId: string) => {
-                setSelectedRoomId(roomId);
-                setActiveTab(0); // Switch to floor plan tab
-              }}
-              loadSchedules={[]} // Provide empty array for now
-              selectedTimeRange="monthly" // Default to monthly view
-              onTimeRangeChange={(e: any) => console.log('Time range changed:', e.target.value)} // Placeholder handler
-            />
-          )}
-          
-          {activeTab === 2 && (
-            <LightingSimulation
-              roomData={roomData as any}
-              selectedRoomId={selectedRoomId}
-              width={containerDimensions.width}
-              height={containerDimensions.height}
-              viewMode={viewMode}
-            />
-          )}
-        </>
-      )}
-      
-      {/* Room Dialog */}
-      <RoomDialog
-        open={isNewRoom}
-        onClose={() => setIsNewRoom(false)}
-        onSave={(room: RoomDetail) => handleSaveRoom(room)}
-        room={selectedRoom || undefined}
-        floorId={selectedFloor}
-      />
     </Box>
   );
 };
