@@ -1,0 +1,8 @@
+// This file simulates a TensorFlow.js weights binary file
+// In a real implementation, this would be actual model weights data
+// For this demo, the system will automatically fallback to the mock detection
+// implementation when loading this file fails.
+
+// This is a placeholder for the binary weights file.
+// In a real implementation, this would be a binary file containing the trained model weights.
+// Since we can't directly write binary content, you'll need to use a real TensorFlow.js model weights file. 
