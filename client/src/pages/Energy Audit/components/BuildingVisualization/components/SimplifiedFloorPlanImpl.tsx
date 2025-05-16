@@ -226,7 +226,7 @@ const SimplifiedFloorPlanImpl: React.FC<SimplifiedFloorPlanImplProps> = ({
                     mt: 0.5
                   }}
                 >
-                  {Math.round(room.confidence * 100)}% confidence
+                  {Math.round((room.confidence || 0) * 100)}% confidence
                 </Typography>
               </>
             )}

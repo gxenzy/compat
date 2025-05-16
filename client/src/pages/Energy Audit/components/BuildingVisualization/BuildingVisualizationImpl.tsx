@@ -60,7 +60,9 @@ import {
   LabelOff,
   OpenInNew,
   Close,
-  RestartAlt
+  RestartAlt,
+  InfoOutlined,
+  Search
 } from '@mui/icons-material';
 import FloorPlanWrapper from './components/FloorPlanWrapper';
 import LightingSimulation from './components/LightingSimulation';
@@ -75,9 +77,7 @@ import {
   LoadSchedule,
   DetectedRoom
 } from './interfaces/buildingInterfaces';
-import { 
-  FLOOR_PLANS, 
-  getSortedFloors, 
+import { getSortedFloors, 
   getFloorPlanImage, 
   getFloorOptions
 } from './config/floorPlanConfig';
@@ -91,8 +91,17 @@ import { useTheme } from '@mui/material/styles';
 import { v4 as uuidv4 } from 'uuid';
 import { getItem } from '../../../../utils/storageUtils';
 import { neuralDetection } from './utils/neuralDetection';
-import { modelTrainingService } from './services/modelTrainingService';
 import SimplifiedFloorPlanImpl from './components/SimplifiedFloorPlanImpl';
+import FloorPlanVisualization from './components/FloorPlanVisualization';
+import FloorInformation from './components/FloorInformation';
+import RoomDialog from './components/RoomDialog';
+import measurementTool, { MeasurementState } from './utils/measurementTool';
+import DetectionMethodSelector, { DetectionMethod } from './components/DetectionMethodSelector';
+import { detectRooms } from './services/roomDetectionService';
+
+// Type helper to handle interface mismatches
+type AnyDetectedRoom = any;
+type AnyRoomDetail = any;
 
 /**
  * BuildingVisualizationImpl Component
@@ -105,7 +114,7 @@ const BuildingVisualizationImpl: React.FC = () => {
   const [selectedFloor, setSelectedFloor] = useState<string>('ground');
   const [floorPlanImage, setFloorPlanImage] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
-  const [showGridLines, setShowGridLines] = useState<boolean>(false);
+  const [showGridLines, setShowGridLines] = useState<boolean>(true);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [isPanMode, setIsPanMode] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
@@ -131,6 +140,7 @@ const BuildingVisualizationImpl: React.FC = () => {
   const [draggedHotspotId, setDraggedHotspotId] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<string | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+  const [detectionMethod, setDetectionMethod] = useState<DetectionMethod>('opencv');
   
   // Context for building data
   const {
@@ -154,6 +164,14 @@ const BuildingVisualizationImpl: React.FC = () => {
   
   // Room data local state (synchronized with context)
   const [roomData, setRoomData] = useState<RoomDetail[]>([]);
+  
+  // Measurement tool state
+  const [measurementState, setMeasurementState] = useState<MeasurementState>(
+    measurementTool.initMeasurementState()
+  );
+  
+  // State for measurement tool
+  const [isMeasurementActive, setIsMeasurementActive] = useState<boolean>(false);
   
   // Update local room data when context rooms change
   useEffect(() => {
@@ -188,15 +206,52 @@ const BuildingVisualizationImpl: React.FC = () => {
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
+        
+        // Store previous dimensions to detect significant changes
+        const prevWidth = containerDimensions.width;
+        const prevHeight = containerDimensions.height;
+        
+        // Update dimensions
         setContainerDimensions({ width, height });
+        
+                  // If dimensions changed significantly (>10%), auto-fit the floor plan
+          const widthChange = Math.abs(width - prevWidth) / prevWidth;
+          const heightChange = Math.abs(height - prevHeight) / prevHeight;
+          
+          if ((widthChange > 0.1 || heightChange > 0.1) && width > 0 && height > 0) {
+            // Reset zoom and pan after a short delay to allow the layout to stabilize
+            setTimeout(() => {
+              // Use the handleFitToView function to properly fit content
+              handleFitToView();
+            }, 300);
+          }
       }
     });
     
     observer.observe(containerRef.current);
     
-    // Clean up observer on unmount
-    return () => observer.disconnect();
-  }, []);
+    // Add window resize listener for global resize events
+    const handleWindowResize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setContainerDimensions({ width, height });
+        
+                  // Auto-fit on window resize after a short delay
+          setTimeout(() => {
+            // Use the full fit-to-view function
+            handleFitToView();
+          }, 300);
+      }
+    };
+    
+    window.addEventListener('resize', handleWindowResize);
+    
+    // Clean up observers and listeners on unmount
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [containerDimensions.width, containerDimensions.height]);
   
   // Handle floor change
   const handleFloorChange = (e: SelectChangeEvent) => {
@@ -222,6 +277,51 @@ const BuildingVisualizationImpl: React.FC = () => {
       // Exiting edit mode, save changes
       saveFloorData();
     }
+  };
+  
+  // Fit to view handler function that resets zoom and centers content
+  const handleFitToView = () => {
+    // Reset zoom level to default
+    setZoomLevel(1.0);
+    
+    // Reset pan offset
+    setPanOffset({ x: 0, y: 0 });
+    
+    // If we have rooms, calculate a view that fits all rooms
+    if (roomData.length > 0) {
+      // Find the bounding box of all rooms
+      let minX = Infinity, minY = Infinity;
+      let maxX = -Infinity, maxY = -Infinity;
+      
+      roomData.forEach(room => {
+        const { x, y, width, height } = room.coords;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + width);
+        maxY = Math.max(maxY, y + height);
+      });
+      
+      // Calculate center of all rooms
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      
+      // Calculate container center
+      const containerCenterX = containerDimensions.width / 2;
+      const containerCenterY = containerDimensions.height / 2;
+      
+      // Calculate offset to center rooms
+      const offsetX = containerCenterX - centerX;
+      const offsetY = containerCenterY - centerY;
+      
+      // Apply offset
+      setPanOffset({ x: offsetX, y: offsetY });
+    }
+    
+    setNotification({
+      open: true,
+      message: 'Floor plan fitted to view',
+      severity: 'info'
+    });
   };
   
   // Handle room click
@@ -382,6 +482,12 @@ const BuildingVisualizationImpl: React.FC = () => {
     if (!isPanMode) return;
     
     e.preventDefault();
+    
+    // Indicate active panning with cursor change
+    if (containerRef.current) {
+      containerRef.current.style.cursor = 'grabbing';
+    }
+    
     setDragStartPos({
       x: e.clientX,
       y: e.clientY
@@ -390,9 +496,22 @@ const BuildingVisualizationImpl: React.FC = () => {
   
   // Handle pan move
   const handlePanMove = (e: React.MouseEvent) => {
+    // Check if this is a custom pan/zoom event from FloorPlanVisualization
+    if ((e as any).zoomLevel && (e as any).panOffset) {
+      // Direct update from child component (used for fit to view)
+      const customEvent = e as any;
+      setZoomLevel(customEvent.zoomLevel);
+      setPanOffset(customEvent.panOffset);
+      return;
+    }
+    
+    // Regular pan handling
     if (!isPanMode) return;
     
     e.preventDefault();
+    
+    // Make sure we have a starting position
+    if (dragStartPos.x === 0 && dragStartPos.y === 0) return;
     
     // Calculate delta
     const deltaX = e.clientX - dragStartPos.x;
@@ -413,7 +532,27 @@ const BuildingVisualizationImpl: React.FC = () => {
   
   // Handle pan end
   const handlePanEnd = () => {
-    // Nothing special needed here, just stop panning
+    // Reset cursor
+    if (containerRef.current) {
+      containerRef.current.style.cursor = isPanMode ? 'grab' : 'default';
+    }
+    
+    // Reset drag start position
+    setDragStartPos({ x: 0, y: 0 });
+  };
+  
+  // Toggle pan mode
+  const togglePanMode = () => {
+    // Can't use both pan and measurement at the same time
+    if (!isPanMode) {
+      setIsMeasurementActive(false);
+    }
+    setIsPanMode(!isPanMode);
+    
+    // Update cursor
+    if (containerRef.current) {
+      containerRef.current.style.cursor = !isPanMode ? 'grab' : 'default';
+    }
   };
   
   // Handle edit menu open
@@ -473,6 +612,42 @@ const BuildingVisualizationImpl: React.FC = () => {
     });
   };
   
+  // Measurement tool handlers
+  const handleMeasurementStart = (e: React.MouseEvent) => {
+    if (!isMeasurementActive) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoomLevel - panOffset.x;
+    const y = (e.clientY - rect.top) / zoomLevel - panOffset.y;
+    
+    setMeasurementState(measurementTool.startMeasurement(measurementState, { x, y }));
+  };
+  
+  const handleMeasurementMove = (e: React.MouseEvent) => {
+    if (!isMeasurementActive || !measurementState.active) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoomLevel - panOffset.x;
+    const y = (e.clientY - rect.top) / zoomLevel - panOffset.y;
+    
+    setMeasurementState(measurementTool.updateMeasurement(measurementState, { x, y }));
+  };
+  
+  const handleMeasurementEnd = (e: React.MouseEvent) => {
+    if (!isMeasurementActive || !measurementState.active) return;
+    
+    setMeasurementState(measurementTool.completeMeasurement(measurementState));
+  };
+  
+  // Toggle measurement tool
+  const toggleMeasurementTool = () => {
+    // Can't use both pan and measurement at the same time
+    if (!isMeasurementActive) {
+      setIsPanMode(false);
+    }
+    setIsMeasurementActive(!isMeasurementActive);
+  };
+  
   // Handle add new room
   const handleAddNewRoom = useCallback(() => {
     // Create a new room at the center of the view
@@ -512,7 +687,7 @@ const BuildingVisualizationImpl: React.FC = () => {
       shape: 'rect'
     };
     
-    // Set as selected and open editor
+    // Set as selected and open dialog
     setSelectedRoomId(newId);
     setIsNewRoom(true);
     setSelectedRoom(defaultRoom);
@@ -571,13 +746,10 @@ const BuildingVisualizationImpl: React.FC = () => {
     setIsProcessingImage(true);
     setDetectedRooms([]);
     
-    // Check if neural detection is ready
-    const neuralDetectionReady = neuralDetection.isReady();
-    
     // Show notification that detection is starting
     setNotification({
       open: true,
-      message: `Processing floor plan image using ${neuralDetectionReady ? 'neural detection' : 'traditional detection'}...`,
+      message: `Processing floor plan image using ${detectionMethod} detection method...`,
       severity: 'info'
     });
     
@@ -589,9 +761,13 @@ const BuildingVisualizationImpl: React.FC = () => {
       
       console.log('Starting room detection on floor plan:', selectedFloor, viewMode);
       console.log('Container dimensions:', width, 'x', height);
+      console.log('Using detection method:', detectionMethod);
 
-      // Run hybrid detection
-      const result = await detectRoomsFromImage(floorPlanImage, width, height);
+      // Use the detection service with the selected method
+      const result = await detectRooms(floorPlanImage, width, height, {
+        method: detectionMethod,
+        useCache: true
+      });
       
       // Update state with processed rooms
       setDetectedRooms(result.rooms);
@@ -612,65 +788,119 @@ const BuildingVisualizationImpl: React.FC = () => {
         detectionMessage += ' with low confidence. Consider manual adjustment';
       }
       
-      // Show if adaptive learning was used
-      const learningData = getItem('room-detection-learning') || {};
-      if (learningData[selectedFloor]) {
-        detectionMessage += ' (enhanced with learned patterns)';
-      }
-      
-      // Show notification of detection completion
       setNotification({
         open: true,
         message: detectionMessage,
         severity: severityLevel
       });
+      
     } catch (error) {
-      console.error('Error in room detection:', error);
+      console.error('Error detecting rooms:', error);
+      
       setNotification({
         open: true,
-        message: 'Error detecting rooms. Please try again or draw rooms manually.',
+        message: 'Error detecting rooms. Please try again.',
         severity: 'error'
       });
+      
+      // Clean up
+      setDetectedRooms([]);
+      setDetectionConfidence(0);
     } finally {
       setIsProcessingImage(false);
     }
   };
   
-  // Enhance the handleApplyDetectedRooms function to use the model training service
+  /**
+   * Apply detected rooms to the floor plan
+   */
   const handleApplyDetectedRooms = async () => {
     if (detectedRooms.length === 0) return;
     
-    // Get the image element for training
-    const floorPlanImg = document.querySelector(`img[src="${floorPlanImage}"]`) as HTMLImageElement;
-    
-    // Save this detection for future learning
-    adaptiveLearning.saveDetection(detectedRooms as any, selectedFloor, detectionConfidence);
-    
-    // Add to model training service
-    modelTrainingService.addTrainingSample(
-      selectedFloor,
-      floorPlanImage,
-      detectedRooms as any,
-      true, // Manual corrections applied
-      detectionConfidence
-    );
-    
-    // If the neural detection model is available, train it with this data
-    if (neuralDetection) {
-      try {
-        console.log('Training neural detection model with verified room data');
-        await neuralDetection.trainOnSample(floorPlanImg, detectedRooms as any);
-      } catch (err) {
-        console.warn('Neural model training failed:', err);
-        // Continue anyway since we have the adaptive learning as backup
+    try {
+      // Get the image element for training
+      const floorPlanImg = document.querySelector(`img[src="${floorPlanImage}"]`) as HTMLImageElement;
+      
+      // Save this detection for future learning with adaptive learning
+      adaptiveLearning.saveDetection(detectedRooms as AnyDetectedRoom[], selectedFloor, detectionConfidence);
+      
+      // Generate fully-editable room details from detected rooms
+      const roomDetails = convertDetectedRoomsToRoomDetails(detectedRooms as AnyDetectedRoom[]);
+      
+      // Enhance room details with additional properties to ensure full editability
+      const enhancedRoomDetails = roomDetails.map(room => {
+        // Determine if this is a polygon-shaped room based on points
+        const hasPolygonPoints = Array.isArray(room.points) && room.points.length >= 3;
+        
+        return {
+          ...room,
+          // Add unique ID if not present
+          id: room.id || `room-${uuidv4().slice(0, 8)}`,
+          // Add default name if not present
+          name: room.name || `Room ${Math.floor(Math.random() * 100)}`,
+          // Ensure all required properties for editing are present
+          editable: true,
+          isDetected: true,
+          // Explicitly set shape based on points property
+          shape: hasPolygonPoints ? 'poly' : 'rect',
+          // Add measurement properties if missing
+          length: room.length || (room.coords.width / 50),
+          width: room.width || (room.coords.height / 50),
+          height: room.height || 3,
+          area: room.area || ((room.coords.width / 50) * (room.coords.height / 50)),
+        };
+      });
+      
+      console.log('Enhanced room details:', enhancedRoomDetails);
+      
+      // Train the neural model if available
+      if (neuralDetection) {
+        try {
+          console.log('Training neural detection model with verified room data');
+          await neuralDetection.trainOnSample(floorPlanImg, detectedRooms as AnyDetectedRoom[]);
+        } catch (err) {
+          console.warn('Neural model training failed:', err);
+        }
       }
-    }
-    
-    // Convert detected rooms to RoomDetail objects
-    const newRoomDetails = convertDetectedRoomsToRoomDetails(detectedRooms as any);
-    
-    // Apply to building context
-    applyDetectedRooms(selectedFloor, detectedRooms).then(success => {
+      
+      // Manually add the rooms to the existing rooms array to ensure they're fully editable
+      const currentRooms = [...roomData];
+      
+      // Add each enhanced room to the current rooms array
+      enhancedRoomDetails.forEach(newRoom => {
+        // Check for existing rooms in the same location (to avoid duplicates)
+        const existingRoomIndex = currentRooms.findIndex(room => 
+          Math.abs(room.coords.x - newRoom.coords.x) < 20 && 
+          Math.abs(room.coords.y - newRoom.coords.y) < 20 &&
+          Math.abs(room.coords.width - newRoom.coords.width) < 20 &&
+          Math.abs(room.coords.height - newRoom.coords.height) < 20
+        );
+        
+        if (existingRoomIndex >= 0) {
+          // Update existing room with new properties
+          currentRooms[existingRoomIndex] = {
+            ...currentRooms[existingRoomIndex],
+            ...newRoom,
+            // Keep the same ID to preserve references
+            id: currentRooms[existingRoomIndex].id,
+            // Ensure the shape is a valid enum value
+            shape: newRoom.shape === 'poly' ? 'poly' : 'rect'
+          };
+        } else {
+          // Add new room, ensuring the shape is a valid enum value
+          currentRooms.push({
+            ...newRoom,
+            shape: newRoom.shape === 'poly' ? 'poly' : 'rect'
+          });
+        }
+      });
+      
+      // Update rooms in context
+      setRooms(currentRooms as any);
+      
+      // Apply to building context (backup method)
+      const success = await applyDetectedRooms(selectedFloor, detectedRooms as AnyDetectedRoom[]);
+      
       if (success) {
         // Clear detected rooms once applied
         setDetectedRooms([]);
@@ -678,23 +908,49 @@ const BuildingVisualizationImpl: React.FC = () => {
         
         setNotification({
           open: true,
-          message: `Applied ${detectedRooms.length} rooms to the floor plan. Detection accuracy will improve over time.`,
+          message: `Added ${enhancedRoomDetails.length} fully editable rooms to the floor plan.`,
           severity: 'success'
         });
       } else {
+        // Even if the context update failed, we've already added the rooms manually
         setNotification({
           open: true,
-          message: 'Failed to apply detected rooms',
-          severity: 'error'
+          message: `Added ${enhancedRoomDetails.length} rooms but failed to update context.`,
+          severity: 'warning'
         });
       }
-    });
+    } catch (error) {
+      console.error('Error applying detected rooms:', error);
+      setNotification({
+        open: true,
+        message: 'An error occurred while applying room detection',
+        severity: 'error'
+      });
+    }
   };
   
   // Reset room positions to their original layout
   const handleResetRoomPositions = () => {
-    // This would require storing the original positions or re-running detection
-    // For now, we'll just show a notification
+    // If we have detected rooms, we can reset to those positions
+    if (detectedRooms.length > 0) {
+      // Convert detected rooms to room details
+      const resetRooms = convertDetectedRoomsToRoomDetails(detectedRooms as AnyDetectedRoom[]);
+      
+      // Update rooms with reset positions
+      setRoomData(resetRooms as AnyRoomDetail[]);
+      
+      // Update in context
+      if (resetRooms.length > 0) {
+        resetRooms.forEach(room => {
+          updateRoomCoordinates(selectedFloor, room.id, room.coords);
+        });
+      }
+    } else {
+      // Otherwise just reset pan and zoom
+      setZoomLevel(1.0);
+      setPanOffset({ x: 0, y: 0 });
+    }
+    
     setNotification({
       open: true,
       message: 'Room positions reset',
@@ -743,8 +999,64 @@ const BuildingVisualizationImpl: React.FC = () => {
     return room.compliance || 0;
   };
   
+  // Add missing hotspot handler functions
+  const handleHotspotDragMove = (e: React.MouseEvent) => {
+    if (!draggedHotspotId || !dragPosition) return;
+    
+    e.preventDefault();
+    
+    // Calculate delta from drag start
+    const deltaX = e.clientX - dragStartPos.x;
+    const deltaY = e.clientY - dragStartPos.y;
+    
+    // Find the room being resized
+    const room = roomData.find(r => r.id === draggedHotspotId);
+    if (!room) return;
+    
+    // Update room dimensions based on drag position
+    const updatedRoom = { ...room };
+    
+    // Adjust coordinates based on drag position
+    switch (dragPosition) {
+      case 'nw': // Northwest: adjust x, y, width and height
+        updatedRoom.coords.x = room.coords.x + deltaX;
+        updatedRoom.coords.y = room.coords.y + deltaY;
+        updatedRoom.coords.width = room.coords.width - deltaX;
+        updatedRoom.coords.height = room.coords.height - deltaY;
+        break;
+      case 'ne': // Northeast: adjust y, width and height
+        updatedRoom.coords.y = room.coords.y + deltaY;
+        updatedRoom.coords.width = room.coords.width + deltaX;
+        updatedRoom.coords.height = room.coords.height - deltaY;
+        break;
+      case 'sw': // Southwest: adjust x, width and height
+        updatedRoom.coords.x = room.coords.x + deltaX;
+        updatedRoom.coords.width = room.coords.width - deltaX;
+        updatedRoom.coords.height = room.coords.height + deltaY;
+        break;
+      case 'se': // Southeast: adjust width and height
+        updatedRoom.coords.width = room.coords.width + deltaX;
+        updatedRoom.coords.height = room.coords.height + deltaY;
+        break;
+    }
+    
+    // Update room dimensions in state
+    updateRoom(selectedFloor, room.id, updatedRoom);
+    
+    // Update drag start position for next move
+    setDragStartPos({
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
+  
+  const handleHotspotDragEnd = () => {
+    setDraggedHotspotId(null);
+    setDragPosition(null);
+  };
+  
   return (
-    <Box>
+    <Box ref={containerRef} sx={{ height: '100%', width: '100%', position: 'relative' }}>
       <Typography variant="h5" gutterBottom>
         Building Visualization
       </Typography>
@@ -823,30 +1135,56 @@ const BuildingVisualizationImpl: React.FC = () => {
       {activeTab === 0 && (
         <Box>
               {/* Visualization Controls */}
-              <VisualizationControls
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-                selectedFloor={selectedFloor}
-                handleFloorChange={handleFloorChange}
-                isEditMode={isEditMode}
-                toggleEditMode={toggleEditMode}
-                showGridLines={showGridLines}
-                setShowGridLines={setShowGridLines}
-                showLabels={showLabels}
-                setShowLabels={setShowLabels}
-                isPanMode={isPanMode}
-                setIsPanMode={setIsPanMode}
-                handleDetectRooms={handleDetectRooms}
-                handleResetRoomPositions={handleResetRoomPositions}
-                handleSynchronizeData={saveFloorData}
-                handleZoomIn={handleZoomIn}
-                handleZoomOut={handleZoomOut}
-                handleAddRoom={handleAddNewRoom}
-                zoomLevel={zoomLevel}
-                isSaving={isSaving}
-                isProcessingImage={isProcessingImage}
-                floorOptions={getFloorOptions()}
-              />
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={8}>
+                  <VisualizationControls
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    selectedFloor={selectedFloor}
+                    handleFloorChange={handleFloorChange}
+                    isEditMode={isEditMode}
+                    toggleEditMode={toggleEditMode}
+                    showGridLines={showGridLines}
+                    setShowGridLines={setShowGridLines}
+                    showLabels={showLabels}
+                    setShowLabels={setShowLabels}
+                    isPanMode={isPanMode}
+                    setIsPanMode={togglePanMode}
+                    handleDetectRooms={handleDetectRooms}
+                    handleResetRoomPositions={handleResetRoomPositions}
+                    handleFitToView={handleFitToView}
+                    handleSynchronizeData={saveFloorData}
+                    handleZoomIn={handleZoomIn}
+                    handleZoomOut={handleZoomOut}
+                    handleAddRoom={handleAddNewRoom}
+                    zoomLevel={zoomLevel}
+                    isSaving={isSaving}
+                    isProcessingImage={isProcessingImage}
+                    floorOptions={getFloorOptions()}
+                    isMeasurementToolActive={isMeasurementActive}
+                    setIsMeasurementToolActive={toggleMeasurementTool}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <DetectionMethodSelector
+                    value={detectionMethod}
+                    onChange={setDetectionMethod}
+                    disabled={isProcessingImage}
+                  />
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleDetectRooms}
+                      disabled={isProcessingImage}
+                      startIcon={<Search />}
+                      fullWidth
+                    >
+                      {isProcessingImage ? 'Detecting Rooms...' : 'Detect Rooms'}
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
           
           {/* Floor Plan Visualization */}
               <Paper sx={{ p: 2, mb: 3, position: 'relative' }}>
@@ -854,11 +1192,16 @@ const BuildingVisualizationImpl: React.FC = () => {
                   ref={containerRef} 
                   sx={{ 
                     position: 'relative', 
-                    height: '500px', 
-                    overflow: 'hidden' 
+                    height: { xs: '400px', sm: '500px', md: '600px', lg: '70vh' },
+                    minHeight: '400px',
+                    maxHeight: '80vh',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}
                 >
-                  <SimplifiedFloorPlanImpl
+                  <FloorPlanVisualization
                     floorPlanImage={floorPlanImage}
                     roomData={roomData}
                     detectedRooms={detectedRooms}
@@ -869,6 +1212,9 @@ const BuildingVisualizationImpl: React.FC = () => {
                     zoomLevel={zoomLevel}
                     panOffset={panOffset}
                     isPanMode={isPanMode}
+                    onPanStart={handlePanStart}
+                    onPanMove={handlePanMove}
+                    onPanEnd={handlePanEnd}
                     detectionConfidence={detectionConfidence}
                     viewMode={viewMode}
                     isEditMode={isEditMode}
@@ -877,8 +1223,18 @@ const BuildingVisualizationImpl: React.FC = () => {
                     onRoomDragMove={handleRoomDragMove}
                     onRoomDragEnd={handleRoomDragEnd}
                     onEditMenuOpen={handleEditMenuOpen}
+                    onHotspotDragStart={handleHotspotDragStart}
+                    onHotspotDragMove={handleHotspotDragMove}
+                    onHotspotDragEnd={handleHotspotDragEnd}
+                    onDelete={handleDeleteRoom}
                     onApplyDetections={handleApplyDetectedRooms}
-                    selectedRoomId={selectedRoomId}
+                    selectedRoom={selectedRoom}
+                    onSelectRoom={(room) => setSelectedRoom(room)}
+                    isMeasurementToolActive={isMeasurementActive}
+                    measurementState={measurementState}
+                    handleMeasurementStart={handleMeasurementStart}
+                    handleMeasurementMove={handleMeasurementMove}
+                    handleMeasurementEnd={handleMeasurementEnd}
                   />
                 </Box>
               </Paper>
@@ -906,11 +1262,11 @@ const BuildingVisualizationImpl: React.FC = () => {
                             </Grid>
                             <Grid item xs={4}>
                               <Typography variant="subtitle2">Length</Typography>
-                              <Typography variant="body2">{room.length.toFixed(2)} m</Typography>
+                              <Typography variant="body2">{room.length?.toFixed(2) || '0.00'} m</Typography>
                             </Grid>
                             <Grid item xs={4}>
                               <Typography variant="subtitle2">Width</Typography>
-                              <Typography variant="body2">{room.width.toFixed(2)} m</Typography>
+                              <Typography variant="body2">{room.width?.toFixed(2) || '0.00'} m</Typography>
                             </Grid>
                             <Grid item xs={4}>
                               <Typography variant="subtitle2">Area</Typography>
@@ -1038,6 +1394,15 @@ const BuildingVisualizationImpl: React.FC = () => {
           )}
         </>
       )}
+      
+      {/* Room Dialog */}
+      <RoomDialog
+        open={isNewRoom}
+        onClose={() => setIsNewRoom(false)}
+        onSave={(room: RoomDetail) => handleSaveRoom(room)}
+        room={selectedRoom || undefined}
+        floorId={selectedFloor}
+      />
     </Box>
   );
 };

@@ -24,8 +24,8 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'ground',
     name: 'Ground Floor',
     level: 'ground',
-    lighting: '/floorplan/ground-floor-lighting.png',
-    power: '/floorplan/ground-floor-power.png',
+    lighting: '/floorplan/ground floor lighting layout.jpg',
+    power: '/floorplan/ground floor power layout.jpg',
     description: 'Main entrance level with reception, registrar, and primary offices',
     order: 1
   },
@@ -33,8 +33,8 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'mezzanine',
     name: 'Mezzanine',
     level: 'mezzanine',
-    lighting: '/floorplan/mezzanine-lighting.png',
-    power: '/floorplan/mezzanine-power.png',
+    lighting: '/floorplan/mezzanine floor lighting layout.jpg',
+    power: '/floorplan/mezzanine floor power layout.jpg',
     description: 'Half-level with research facilities and administrative offices',
     order: 2
   },
@@ -42,8 +42,8 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'second',
     name: 'Second Floor',
     level: 'second',
-    lighting: '/floorplan/second-floor-lighting.png',
-    power: '/floorplan/second-floor-power.png',
+    lighting: '/floorplan/second floor lighting layout.jpg',
+    power: '/floorplan/second floor power layout.jpg',
     description: 'Classrooms and faculty offices',
     order: 3
   },
@@ -51,8 +51,8 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'third',
     name: 'Third Floor',
     level: 'third',
-    lighting: '/floorplan/third-floor-lighting.png',
-    power: '/floorplan/third-floor-power.png',
+    lighting: '/floorplan/third floor lighting layout.jpg',
+    power: '/floorplan/third floor power layout.jpg',
     description: 'Additional classrooms and specialized labs',
     order: 4
   },
@@ -60,8 +60,8 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'fourth',
     name: 'Fourth Floor',
     level: 'fourth',
-    lighting: '/floorplan/fourth-floor-lighting.png',
-    power: '/floorplan/fourth-floor-power.png',
+    lighting: '/floorplan/fourth floor lighting layout.jpg',
+    power: '/floorplan/fourth floor power layout.jpg',
     description: 'Specialized laboratories and facilities',
     order: 5
   },
@@ -69,43 +69,15 @@ export const FLOORS: Record<string, FloorPlanData> = {
     id: 'fifth',
     name: 'Fifth Floor',
     level: 'fifth',
-    lighting: '/floorplan/fifth-floor-lighting.png', 
-    power: '/floorplan/fifth-floor-power.png',
+    lighting: '/floorplan/fifth floor lighting layout.jpg', 
+    power: '/floorplan/fifth floor power layout.jpg',
     description: 'Executive offices and meeting rooms',
     order: 6
   }
 };
 
-// Mapping between floor IDs and image paths for both lighting and power views
-export const FLOOR_PLANS: Record<string, Record<FloorPlanViewMode, string>> = {
-  'ground': {
-    'lighting': '/floorplan/ground-floor-lighting.png',
-    'power': '/floorplan/ground-floor-power.png'
-  },
-  'mezzanine': {
-    'lighting': '/floorplan/mezzanine-lighting.png',
-    'power': '/floorplan/mezzanine-power.png'
-  },
-  'second': {
-    'lighting': '/floorplan/second-floor-lighting.png',
-    'power': '/floorplan/second-floor-power.png'
-  },
-  'third': {
-    'lighting': '/floorplan/third-floor-lighting.png',
-    'power': '/floorplan/third-floor-power.png'
-  },
-  'fourth': {
-    'lighting': '/floorplan/fourth-floor-lighting.png',
-    'power': '/floorplan/fourth-floor-power.png'
-  },
-  'fifth': {
-    'lighting': '/floorplan/fifth-floor-lighting.png',
-    'power': '/floorplan/fifth-floor-power.png'
-  }
-};
-
 // Fallback image if floor plan cannot be loaded
-export const FALLBACK_FLOOR_PLAN = '/floorplan/placeholder.png';
+export const FALLBACK_FLOOR_PLAN = '/floorplan/placeholder.jpg';
 
 /**
  * Get sorted floors by their order
@@ -121,8 +93,8 @@ export const getSortedFloors = (): FloorPlanData[] => {
  * @returns URL of the floor plan image
  */
 export const getFloorPlanImage = (floorId: string, viewMode: FloorPlanViewMode = 'lighting'): string => {
-  if (floorId in FLOOR_PLANS && viewMode in FLOOR_PLANS[floorId]) {
-    return FLOOR_PLANS[floorId][viewMode];
+  if (floorId in FLOORS) {
+    return viewMode === 'lighting' ? FLOORS[floorId].lighting : FLOORS[floorId].power;
   }
   return FALLBACK_FLOOR_PLAN;
 };

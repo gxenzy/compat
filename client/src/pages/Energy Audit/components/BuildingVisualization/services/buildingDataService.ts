@@ -4,44 +4,85 @@ import { BuildingData, RoomDetail, NonCompliantArea, LoadSchedule, DetectedRoom 
  * Service for handling building data operations
  */
 class BuildingDataService {
+  private readonly STORAGE_KEY = 'building_data';
+  private readonly API_AVAILABLE_KEY = 'building_data_api_available';
+  
+  /**
+   * Check if the API is available
+   */
+  private isApiAvailable(): boolean {
+    return localStorage.getItem(this.API_AVAILABLE_KEY) !== 'false';
+  }
+  
+  /**
+   * Mark API as unavailable for future calls
+   */
+  private markApiUnavailable(): void {
+    localStorage.setItem(this.API_AVAILABLE_KEY, 'false');
+  }
+  
   /**
    * Fetch building data from the API
    */
   async fetchBuildingData(): Promise<BuildingData> {
     try {
-      // First try to fetch from API
+      // First check if we've already determined the API is unavailable
+      if (!this.isApiAvailable()) {
+        return this.getLocalBuildingData();
+      }
+      
+      // Try to fetch from API
       try {
         const response = await fetch('/api/building-data');
         if (!response.ok) {
           throw new Error(`Failed to fetch building data: ${response.statusText}`);
         }
-        return await response.json();
+        const data = await response.json();
+        
+        // Cache the successful response
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        return data;
       } catch (apiError) {
-        console.warn('API fetch failed, using default building data:', apiError);
-        // Return default data as fallback
-        return this.getDefaultBuildingData();
+        console.warn('API fetch failed, using local building data:', apiError);
+        this.markApiUnavailable();
+        return this.getLocalBuildingData();
       }
     } catch (error) {
       console.error('Error fetching building data:', error);
-      return this.getDefaultBuildingData();
+      return this.getLocalBuildingData();
     }
   }
 
   /**
-   * Save building data to the API
+   * Save building data to the API and localStorage
    */
   async saveBuildingData(buildingData: BuildingData): Promise<boolean> {
     try {
-      const response = await fetch('/api/building-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildingData)
-      });
+      // Always save to localStorage first
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(buildingData));
       
-      if (!response.ok) {
-        throw new Error(`Failed to save building data: ${response.statusText}`);
+      // If API is known to be unavailable, don't attempt the API call
+      if (!this.isApiAvailable()) {
+        console.log('API known to be unavailable, saved to localStorage only');
+        return true;
       }
-      return true;
+      
+      try {
+        const response = await fetch('/api/building-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildingData)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to save building data: ${response.statusText}`);
+        }
+        return true;
+      } catch (apiError) {
+        console.warn('API save failed, data saved to localStorage only:', apiError);
+        this.markApiUnavailable();
+        return true; // Still return true since the save to localStorage succeeded
+      }
     } catch (error) {
       console.error('Error saving building data:', error);
       return false;
@@ -53,20 +94,37 @@ class BuildingDataService {
    */
   async addRoom(floorKey: string, room: RoomDetail): Promise<boolean> {
     try {
-      const response = await fetch(`/api/building-data/floors/${floorKey}/rooms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(room)
-      });
+      // Get current data from local storage
+      const buildingData = this.getLocalBuildingData();
       
-      if (!response.ok) {
-        throw new Error(`Failed to add room: ${response.statusText}`);
+      // Add the room to the floor
+      if (buildingData.floors[floorKey]) {
+        buildingData.floors[floorKey].rooms.push(room);
+        
+        // Save the updated data
+        return this.saveBuildingData(buildingData);
       }
-      return true;
+      return false;
     } catch (error) {
       console.error('Error adding room:', error);
       return false;
     }
+  }
+
+  /**
+   * Get building data from localStorage or default
+   */
+  private getLocalBuildingData(): BuildingData {
+    try {
+      const storedData = localStorage.getItem(this.STORAGE_KEY);
+      if (storedData) {
+        return JSON.parse(storedData);
+      }
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+    }
+    
+    return this.getDefaultBuildingData();
   }
 
   /**

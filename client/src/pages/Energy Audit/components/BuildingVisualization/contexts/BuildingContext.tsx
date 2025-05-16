@@ -4,11 +4,15 @@ import {
   DetectedRoom, 
   BuildingData, 
   FloorData,
-  NonCompliantArea
+  NonCompliantArea,
+  Point,
+  LoadSchedule
 } from '../interfaces/buildingInterfaces';
+import { DetectedRoom as DetectedRoomInterface } from '../interfaces';
 import { buildingDataService } from '../services/buildingDataService';
 import { calculateBuildingEnergyMetrics } from '../utils/energyCalculations';
 import { detectRoomsFromImage } from '../utils/cnnDetection';
+import { modelTrainingService } from '../services/modelTrainingService';
 
 interface BuildingContextProps {
   buildingData: BuildingData;
@@ -24,7 +28,7 @@ interface BuildingContextProps {
   getRoomById: (floorKey: string, roomId: string) => RoomDetail | undefined;
   getFloorRooms: (floorKey: string) => RoomDetail[];
   getEnergyMetrics: (floorKey: string) => ReturnType<typeof calculateBuildingEnergyMetrics>;
-  runRoomDetection: (floorKey: string, imageSrc: string, containerWidth: number, containerHeight: number) => Promise<DetectedRoom[]>;
+  runRoomDetection: (imageSrc: string, containerWidth: number, containerHeight: number) => Promise<DetectedRoomInterface[]>;
   applyDetectedRooms: (floorKey: string, detectedRooms: DetectedRoom[]) => Promise<boolean>;
   updateRoomCoordinates: (floorKey: string, roomId: string, coords: { x: number; y: number; width?: number; height?: number }) => Promise<boolean>;
   saveBuildingData: () => Promise<boolean>;
@@ -215,17 +219,16 @@ export const BuildingProvider: React.FC<BuildingProviderProps> = ({ children }) 
   };
 
   const runRoomDetection = async (
-    floorKey: string, 
     imageSrc: string, 
     containerWidth: number, 
     containerHeight: number
-  ): Promise<DetectedRoom[]> => {
+  ): Promise<DetectedRoomInterface[]> => {
     try {
       // Run detection
       const result = await detectRoomsFromImage(imageSrc, containerWidth, containerHeight);
       
       // Return detected rooms
-      return result.rooms;
+      return result.rooms as DetectedRoomInterface[];
     } catch (err) {
       console.error('Error detecting rooms:', err);
       return [];
@@ -236,6 +239,28 @@ export const BuildingProvider: React.FC<BuildingProviderProps> = ({ children }) 
     try {
       // Convert detected rooms to RoomDetail objects
       const newRooms = buildingDataService.convertDetectedRoomsToDetails(detectedRooms as any);
+      
+      // Add to training data if user has opted in
+      if (modelTrainingService.isContributingEnabled()) {
+        // Get container dimensions (approximate from window if not available)
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight * 0.7; // Rough estimate of visualization area
+        
+        // Get current context for floor plan image
+        // We'll use a placeholder image URL if we can't get the actual one
+        // In a real implementation, this would come from the buildingDataService
+        const imageUrl = `/floorplan/${floorKey}.jpg`;
+        
+        // Add to training data
+        modelTrainingService.addUserCorrections(
+          floorKey,
+          imageUrl,
+          detectedRooms as any,
+          newRooms,
+          containerWidth,
+          containerHeight
+        );
+      }
       
       // Add rooms to local state
       setBuildingData((prevData: any) => {
@@ -255,7 +280,7 @@ export const BuildingProvider: React.FC<BuildingProviderProps> = ({ children }) 
         };
       });
 
-      // Save to API (in a real implementation, we'd save each room)
+      // Save to API
       return await saveBuildingData();
     } catch (err) {
       console.error('Error applying detected rooms:', err);

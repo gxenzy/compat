@@ -1,28 +1,28 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  CircularProgress, 
+import React, { useRef, useEffect, useState } from 'react';
+import {
+  Box,
   Paper,
+  Typography,
   Button,
+  IconButton,
+  CircularProgress,
   Tooltip,
-  IconButton
+  Chip,
+  Grid,
+  ButtonGroup
 } from '@mui/material';
-import { 
-  Save, 
-  CheckCircle, 
-  Warning,
-  ErrorOutline,
-  Edit,
-  Delete
+import {
+  ZoomIn,
+  ZoomOut,
+  RestartAlt,
+  CropFree,
+  Check,
+  Close,
+  Straighten,
+  Add
 } from '@mui/icons-material';
-import { 
-  DetectedRoom, 
-  RoomDetail,
-  NonCompliantArea,
-  Point
-} from '../interfaces/buildingInterfaces';
-import { useTheme } from '@mui/material/styles';
+import { RoomDetail, DetectedRoom, NonCompliantArea, Point } from '../interfaces/buildingInterfaces';
+import { MeasurementState, Measurement } from '../utils/measurementTool';
 
 interface FloorPlanVisualizationProps {
   floorPlanImage: string;
@@ -35,13 +35,9 @@ interface FloorPlanVisualizationProps {
   zoomLevel: number;
   panOffset: Point;
   isPanMode: boolean;
-  onPanStart: (e: React.MouseEvent) => void;
-  onPanMove: (e: React.MouseEvent) => void;
-  onPanEnd: () => void;
   detectionConfidence: number;
   viewMode: 'lighting' | 'power';
   isEditMode: boolean;
-  onApplyDetections: () => void;
   onRoomClick: (roomId: string) => void;
   onRoomDragStart: (roomId: string, e: React.MouseEvent) => void;
   onRoomDragMove: (e: React.MouseEvent) => void;
@@ -51,10 +47,23 @@ interface FloorPlanVisualizationProps {
   onHotspotDragMove: (e: React.MouseEvent) => void;
   onHotspotDragEnd: () => void;
   onDelete: (roomId: string) => void;
+  onApplyDetections: () => void;
   selectedRoom: RoomDetail | null;
   onSelectRoom: (room: RoomDetail) => void;
+  onPanStart: (e: React.MouseEvent) => void;
+  onPanMove: (e: React.MouseEvent) => void;
+  onPanEnd: () => void;
+  isMeasurementToolActive: boolean;
+  measurementState: MeasurementState;
+  handleMeasurementStart: (e: React.MouseEvent) => void;
+  handleMeasurementMove: (e: React.MouseEvent) => void;
+  handleMeasurementEnd: (e: React.MouseEvent) => void;
 }
 
+/**
+ * FloorPlanVisualization Component
+ * Renders the floor plan image with interactive room elements and controls
+ */
 const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
   floorPlanImage,
   roomData,
@@ -66,13 +75,9 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
   zoomLevel,
   panOffset,
   isPanMode,
-  onPanStart,
-  onPanMove,
-  onPanEnd,
   detectionConfidence,
   viewMode,
   isEditMode,
-  onApplyDetections,
   onRoomClick,
   onRoomDragStart,
   onRoomDragMove,
@@ -82,194 +87,753 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
   onHotspotDragMove,
   onHotspotDragEnd,
   onDelete,
+  onApplyDetections,
   selectedRoom,
-  onSelectRoom
+  onSelectRoom,
+  onPanStart,
+  onPanMove,
+  onPanEnd,
+  isMeasurementToolActive,
+  measurementState,
+  handleMeasurementStart,
+  handleMeasurementMove,
+  handleMeasurementEnd
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [containerDimensions, setContainerDimensions] = useState({ width: 800, height: 600 });
-  const theme = useTheme();
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   
-  // Color mapping for room types
-  const ROOM_TYPE_COLORS: {[key: string]: string} = {
-    'office': '#4CAF50',
-    'conference': '#2196F3',
-    'restroom': '#9C27B0',
-    'kitchen': '#FF9800',
-    'storage': '#795548',
-    'electrical': '#F44336',
-    'hallway': '#607D8B',
-    'server': '#E91E63',
-    'classroom': '#00BCD4',
-    'reception': '#8BC34A',
-    'lobby': '#3F51B5',
-    'default': '#9E9E9E'
-  };
-  
-  // Get room color based on room type or compliance
-  const getRoomColor = (room: RoomDetail): string => {
-    if (viewMode === 'lighting') {
-      // For lighting view, use compliance values to shade the room
-      const compliance = room.compliance || 0;
-      if (compliance < 50) return '#DB4437'; // Red for poor compliance
-      if (compliance < 75) return '#F4B400'; // Yellow for moderate compliance
-      if (compliance < 90) return '#0F9D58'; // Green for good compliance
-      return '#4285F4'; // Blue for excellent compliance
+  // Get container dimensions on mount and resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setContainerSize({ width, height });
+      }
+    };
+    
+    updateSize();
+    
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
     }
     
-    // For power view or default, use room type
-    const type = room.roomType?.toLowerCase() || 'default';
-    return ROOM_TYPE_COLORS[type] || ROOM_TYPE_COLORS['default'];
-  };
-  
-  // Update container dimensions on resize
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const updateDimensions = () => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        setContainerDimensions({
-          width: rect.width,
-          height: rect.height
-        });
-      }
-    };
-    
-    // Set dimensions initially
-    updateDimensions();
-    
-    // Set up resize observer
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    resizeObserver.observe(containerRef.current);
-    
-    return () => {
-      if (containerRef.current) {
-        resizeObserver.unobserve(containerRef.current);
-      }
-    };
+    return () => resizeObserver.disconnect();
   }, []);
   
-  // Handle image loading
-  useEffect(() => {
-    const img = new Image();
-    img.src = floorPlanImage;
+  // Handle image load to get dimensions and fit to view
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const imgWidth = img.naturalWidth;
+    const imgHeight = img.naturalHeight;
     
-    img.onload = () => {
-      setImageLoaded(true);
-      setImageError(false);
-    };
+    setImageSize({ 
+      width: imgWidth, 
+      height: imgHeight 
+    });
     
-    img.onerror = () => {
-      console.error("Failed to load image:", floorPlanImage);
-      setImageError(true);
-      setImageLoaded(false);
-    };
-    
-    // Set a timeout to prevent hanging forever
-    const timeout = setTimeout(() => {
-      if (!imageLoaded && !imageError) {
-        console.warn('Image loading timed out');
-        setImageError(true);
-      }
-    }, 10000);
-    
-    return () => clearTimeout(timeout);
-  }, [floorPlanImage]);
-  
-  // Handle room click
-  const handleRoomClick = (room: RoomDetail, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (!isEditMode) {
-      // Update selected room
-      onSelectRoom(room);
+    // Auto-fit image to view on initial load
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight;
       
-      // Call the parent's room click handler
-      onRoomClick(room.id);
+      // Calculate the best fit zoom level
+      const widthRatio = containerWidth / imgWidth;
+      const heightRatio = containerHeight / imgHeight;
+      const bestFitZoom = Math.min(widthRatio, heightRatio) * 0.9; // 90% to add margin
+      
+      // Only auto-fit if the image is larger than the container
+      if (imgWidth > containerWidth || imgHeight > containerHeight) {
+        // Create custom event to trigger fit to view
+        setTimeout(() => handleFitToView(), 100);
+      }
     }
   };
   
-  // Render rooms
-  const renderRooms = () => {
-    return roomData.map(room => {
-      const isSelected = selectedRoom?.id === room.id;
-      
-      // Determine indicator for compliance
-      let ComplianceIcon = null;
-      let complianceColor = '';
-      
-      if (room.compliance !== undefined) {
-        if (room.compliance >= 90) {
-          ComplianceIcon = CheckCircle;
-          complianceColor = 'success.main';
-        } else if (room.compliance >= 70) {
-          ComplianceIcon = Warning;
-          complianceColor = 'warning.main';
-        } else {
-          ComplianceIcon = ErrorOutline;
-          complianceColor = 'error.main';
-        }
+  // Fit to view handler
+  const handleFitToView = () => {
+    if (!containerRef.current || imageSize.width === 0) return;
+    
+    // Calculate the zoom level to fit the image
+    const containerWidth = containerRef.current.clientWidth;
+    const containerHeight = containerRef.current.clientHeight;
+    
+    // Determine if image is landscape or portrait
+    const isLandscape = imageSize.width > imageSize.height;
+    
+    // Calculate ratios
+    const widthRatio = containerWidth / imageSize.width;
+    const heightRatio = containerHeight / imageSize.height;
+    
+    // Use appropriate scaling based on image and container orientations
+    let newZoomLevel;
+    
+    if (isLandscape) {
+      // For landscape images, prioritize width fitting if container is relatively wide
+      if (containerWidth / containerHeight > 1.2) {
+        newZoomLevel = widthRatio * 0.95; // 95% to add slight margin
+      } else {
+        // Container is more square or portrait, use the smaller ratio
+        newZoomLevel = Math.min(widthRatio, heightRatio) * 0.9;
       }
+    } else {
+      // For portrait images, prioritize height fitting if container is relatively tall
+      if (containerHeight / containerWidth > 1.2) {
+        newZoomLevel = heightRatio * 0.95; // 95% to add slight margin
+      } else {
+        // Container is more square or landscape, use the smaller ratio
+        newZoomLevel = Math.min(widthRatio, heightRatio) * 0.9;
+      }
+    }
+    
+    // Ensure zoom level is reasonable (not too small or too large)
+    newZoomLevel = Math.max(0.1, Math.min(newZoomLevel, 2.0));
+    
+    // Center the image
+    const newPanOffset = {
+      x: (containerWidth / newZoomLevel - imageSize.width) / 2,
+      y: (containerHeight / newZoomLevel - imageSize.height) / 2
+    };
+    
+    // Call appropriate parent handlers to update state
+    if (onPanMove) {
+      // Since we can't easily create a proper React.MouseEvent,
+      // we'll use a simple object with the properties we need
+      const eventData = {
+        clientX: 0,
+        clientY: 0,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        zoomLevel: newZoomLevel,
+        panOffset: newPanOffset
+      };
       
-      return (
-        <Box
-          key={room.id}
-          data-id={room.id}
-          sx={{
-            position: 'absolute',
-            top: room.coords.y,
-            left: room.coords.x,
-            width: room.coords.width,
-            height: room.coords.height,
-            backgroundColor: `${getRoomColor(room)}40`, // 40 is hex for 25% opacity
-            border: `2px solid ${getRoomColor(room)}`,
-            borderRadius: '4px',
-            transform: 'translate(-50%, -50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            cursor: isEditMode ? 'move' : 'pointer',
-            boxShadow: isSelected ? '0 0 8px rgba(0,0,0,0.5)' : 'none',
-            userSelect: 'none',
-            zIndex: isSelected ? 10 : 1,
-            transition: isEditMode ? 'none' : 'all 0.2s ease',
-            '&:hover': {
-              boxShadow: '0 0 10px rgba(0,0,0,0.3)',
-              zIndex: 5
-            }
-          }}
-          onClick={(e) => handleRoomClick(room, e)}
-          onMouseDown={(e) => isEditMode && onRoomDragStart(room.id, e)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            if (isEditMode) {
-              onEditMenuOpen(room.id);
-            }
-          }}
+      // Pass our custom event-like object to the handler
+      onPanMove(eventData as unknown as React.MouseEvent);
+    }
+  };
+  
+  // Reset room positions handler
+  const handleResetRoomPositions = () => {
+    // This would reload room positions from their original detection
+    if (detectedRooms.length > 0) {
+      onApplyDetections();
+    }
+  };
+  
+  // Handle mousedown for pan or measurement
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isPanMode && !isMeasurementToolActive) {
+      setIsDragging(true);
+      onPanStart(e);
+    } else if (isMeasurementToolActive) {
+      handleMeasurementStart(e);
+    }
+  };
+  
+  // Handle mousemove for pan or measurement
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanMode && isDragging && !isMeasurementToolActive) {
+      onPanMove(e);
+    } else if (isMeasurementToolActive && measurementState.active) {
+      handleMeasurementMove(e);
+    }
+  };
+  
+  // Handle mouseup for pan or measurement
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (isPanMode && isDragging && !isMeasurementToolActive) {
+      setIsDragging(false);
+      onPanEnd();
+    } else if (isMeasurementToolActive) {
+      handleMeasurementEnd(e);
+    }
+  };
+  
+  // Draw grid lines
+  const renderGridLines = () => {
+    if (!showGridLines) return null;
+    
+    const gridSize = 50 * zoomLevel; // 50px grid at 1x zoom
+    const gridLines = [];
+    
+    // Calculate visible area
+    const visibleAreaWidth = containerSize.width / zoomLevel;
+    const visibleAreaHeight = containerSize.height / zoomLevel;
+    
+    // Calculate grid extents including panning
+    const startX = Math.floor(-panOffset.x / gridSize) * gridSize;
+    const startY = Math.floor(-panOffset.y / gridSize) * gridSize;
+    const endX = startX + visibleAreaWidth + gridSize * 2;
+    const endY = startY + visibleAreaHeight + gridSize * 2;
+    
+    // Vertical lines
+    for (let x = startX; x <= endX; x += gridSize) {
+      gridLines.push(
+        <line 
+          key={`v-${x}`} 
+          x1={x} 
+          y1={startY} 
+          x2={x} 
+          y2={endY}
+          stroke="rgba(0, 0, 0, 0.1)"
+          strokeWidth={1 / zoomLevel}
+        />
+      );
+    }
+    
+    // Horizontal lines
+    for (let y = startY; y <= endY; y += gridSize) {
+      gridLines.push(
+        <line 
+          key={`h-${y}`} 
+          x1={startX} 
+          y1={y} 
+          x2={endX} 
+          y2={y}
+          stroke="rgba(0, 0, 0, 0.1)"
+          strokeWidth={1 / zoomLevel}
+        />
+      );
+    }
+    
+    return (
+      <svg 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          pointerEvents: 'none' 
+        }}
+      >
+        <g 
+          transform={`scale(${zoomLevel}) translate(${panOffset.x}, ${panOffset.y})`}
         >
-          {/* Room label */}
-          {showLabels && (
-            <Box
-              sx={{
-                backgroundColor: 'rgba(255,255,255,0.8)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                maxWidth: '90%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5
+          {gridLines}
+        </g>
+      </svg>
+    );
+  };
+  
+  // Draw measurements
+  const renderMeasurements = () => {
+    if (!isMeasurementToolActive) return null;
+    
+    const allMeasurements = [...measurementState.measurements];
+    
+    // Add current active measurement if it exists
+    if (measurementState.active && measurementState.start && measurementState.end) {
+      const activeMeasurement = {
+        id: 'active-measurement',
+        start: measurementState.start,
+        end: measurementState.end,
+        distance: Math.sqrt(
+          Math.pow(measurementState.end.x - measurementState.start.x, 2) + 
+          Math.pow(measurementState.end.y - measurementState.start.y, 2)
+        ),
+        realDistance: 0,
+        label: 'Measuring...'
+      };
+      
+      allMeasurements.push(activeMeasurement);
+    }
+    
+    return (
+      <svg 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          pointerEvents: 'none' 
+        }}
+      >
+        <g transform={`scale(${zoomLevel}) translate(${panOffset.x}, ${panOffset.y})`}>
+          {allMeasurements.map((measurement) => {
+            const { id, start, end, label } = measurement;
+            const isActive = id === 'active-measurement';
+            
+            // Calculate midpoint for label
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+            
+            // Calculate angle for label rotation
+            const angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI;
+            
+            return (
+              <g key={id}>
+                {/* Line */}
+                <line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={isActive ? "#2196f3" : "#4caf50"}
+                  strokeWidth={2 / zoomLevel}
+                  strokeDasharray={isActive ? "5,5" : "none"}
+                />
+                
+                {/* Start point */}
+                <circle
+                  cx={start.x}
+                  cy={start.y}
+                  r={4 / zoomLevel}
+                  fill={isActive ? "#2196f3" : "#4caf50"}
+                />
+                
+                {/* End point */}
+                <circle
+                  cx={end.x}
+                  cy={end.y}
+                  r={4 / zoomLevel}
+                  fill={isActive ? "#2196f3" : "#4caf50"}
+                />
+                
+                {/* Measurement label */}
+                <g transform={`translate(${midX}, ${midY}) rotate(${angle}) translate(0, ${-10 / zoomLevel})`}>
+                  <rect
+                    x={-20 / zoomLevel}
+                    y={-10 / zoomLevel}
+                    width={40 / zoomLevel}
+                    height={20 / zoomLevel}
+                    fill="white"
+                    fillOpacity="0.8"
+                    rx={4 / zoomLevel}
+                    ry={4 / zoomLevel}
+                  />
+                  <text
+                    x="0"
+                    y={5 / zoomLevel}
+                    fontSize={12 / zoomLevel}
+                    textAnchor="middle"
+                    fill="black"
+                  >
+                    {label}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+    );
+  };
+  
+  // Render room resize handles
+  const renderRoomHandles = (room: RoomDetail) => {
+    if (!isEditMode || room.id !== (selectedRoom?.id ?? '')) return null;
+    
+    const { x, y, width, height } = room.coords;
+    
+    // Handle positions
+    const handles = [
+      { position: 'nw', x, y },
+      { position: 'ne', x: x + width, y },
+      { position: 'sw', x, y: y + height },
+      { position: 'se', x: x + width, y: y + height }
+    ];
+    
+    return handles.map(handle => (
+      <div
+        key={`handle-${room.id}-${handle.position}`}
+        style={{
+          position: 'absolute',
+          width: '12px',
+          height: '12px',
+          backgroundColor: 'white',
+          border: '2px solid #1976d2',
+          borderRadius: '50%',
+          transform: 'translate(-50%, -50%)',
+          cursor: handle.position === 'nw' || handle.position === 'se' ? 'nwse-resize' : 'nesw-resize',
+          left: `${handle.x * zoomLevel}px`,
+          top: `${handle.y * zoomLevel}px`,
+          zIndex: 100
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onHotspotDragStart(room.id, handle.position, e);
+        }}
+      />
+    ));
+  };
+  
+  // Room styling based on view mode and compliance
+  const getRoomStyle = (room: RoomDetail) => {
+    const isSelected = room.id === (selectedRoom?.id ?? '');
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: `${room.coords.x * zoomLevel}px`,
+      top: `${room.coords.y * zoomLevel}px`,
+      width: `${room.coords.width * zoomLevel}px`,
+      height: `${room.coords.height * zoomLevel}px`,
+      borderRadius: '4px',
+      boxSizing: 'border-box',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: isEditMode ? 'move' : 'pointer',
+      transition: 'background-color 0.2s, border 0.2s',
+      zIndex: isSelected ? 10 : 1
+    };
+    
+    // Calculate compliance color if viewing lighting
+    if (viewMode === 'lighting') {
+      const compliance = room.compliance || 0;
+      
+      if (compliance >= 90) {
+        // Good compliance - green
+        return {
+          ...baseStyle,
+          backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.5)' : 'rgba(76, 175, 80, 0.2)',
+          border: isSelected ? '2px solid #2e7d32' : '1px solid #81c784'
+        };
+      } else if (compliance >= 70) {
+        // Acceptable compliance - yellow
+        return {
+          ...baseStyle,
+          backgroundColor: isSelected ? 'rgba(255, 235, 59, 0.5)' : 'rgba(255, 235, 59, 0.2)',
+          border: isSelected ? '2px solid #f9a825' : '1px solid #fdd835'
+        };
+      } else {
+        // Poor compliance - red
+        return {
+          ...baseStyle,
+          backgroundColor: isSelected ? 'rgba(244, 67, 54, 0.5)' : 'rgba(244, 67, 54, 0.2)',
+          border: isSelected ? '2px solid #c62828' : '1px solid #e57373'
+        };
+      }
+    } else {
+      // Power view - use blue hues
+      return {
+        ...baseStyle,
+        backgroundColor: isSelected ? 'rgba(33, 150, 243, 0.5)' : 'rgba(33, 150, 243, 0.2)',
+        border: isSelected ? '2px solid #1565c0' : '1px solid #64b5f6'
+      };
+    }
+  };
+  
+  // Render detected rooms (from detection algorithm)
+  const renderDetectedRooms = () => {
+    if (detectedRooms.length === 0) return null;
+    
+    return (
+      <React.Fragment>
+        {/* Render detected rooms with the same style as normal rooms but with indication they're detected */}
+        {detectedRooms.map(room => {
+          // Determine if this room has polygon points
+          const hasPolygon = room.points && room.points.length > 0;
+          
+          // Base style for all detected rooms
+          const baseStyle: React.CSSProperties = {
+            position: 'absolute',
+            left: `${room.x * zoomLevel}px`,
+            top: `${room.y * zoomLevel}px`,
+            width: `${room.width * zoomLevel}px`,
+            height: `${room.height * zoomLevel}px`,
+            borderRadius: '4px',
+            boxSizing: 'border-box',
+            cursor: isPanMode ? 'grab' : 'pointer',
+            zIndex: 5, // Higher than regular rooms to show on top
+            // Semi-transparent blue for detected rooms
+            backgroundColor: 'rgba(33, 150, 243, 0.2)',
+            // Dashed border to indicate it's a detected room
+            border: '2px dashed #2196f3',
+            // Add a subtle animation to highlight these are detected rooms
+            animation: 'pulse 2s infinite alternate'
+          };
+          
+          return (
+            <div
+              key={`detected-${room.id}`}
+              data-id={room.id}
+              style={baseStyle}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Make detected rooms clickable like regular rooms
+                onRoomClick(room.id);
+              }}
+              onMouseDown={(e) => {
+                if (!isEditMode) return;
+                e.stopPropagation();
+                // Make detected rooms draggable like regular rooms
+                onRoomDragStart(room.id, e);
+              }}
+              onContextMenu={(e) => {
+                // Add right-click menu support
+                if (!isEditMode) return;
+                e.preventDefault();
+                e.stopPropagation();
+                onEditMenuOpen(room.id);
               }}
             >
+              {/* Room label if labels are enabled */}
+              {showLabels && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    fontSize: `${Math.max(12, 14 * zoomLevel)}px`,
+                    fontWeight: 'bold',
+                    color: '#1976d2',
+                    textShadow: '0 0 4px white',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    textAlign: 'center'
+                  }}
+                >
+                  {room.name || 'Detected Room'}
+                </div>
+              )}
+              
+              {/* Hotspot handles for resizing (only in edit mode) */}
+              {isEditMode && (
+                <>
+                  {/* Northwest handle */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-5px',
+                      left: '-5px',
+                      width: '10px',
+                      height: '10px',
+                      backgroundColor: '#1976d2',
+                      border: '1px solid white',
+                      borderRadius: '50%',
+                      cursor: 'nwse-resize',
+                      zIndex: 2
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      onHotspotDragStart(room.id, 'nw', e);
+                    }}
+                  />
+                  {/* Northeast handle */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-5px',
+                      right: '-5px',
+                      width: '10px',
+                      height: '10px',
+                      backgroundColor: '#1976d2',
+                      border: '1px solid white',
+                      borderRadius: '50%',
+                      cursor: 'nesw-resize',
+                      zIndex: 2
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      onHotspotDragStart(room.id, 'ne', e);
+                    }}
+                  />
+                  {/* Southwest handle */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-5px',
+                      left: '-5px',
+                      width: '10px',
+                      height: '10px',
+                      backgroundColor: '#1976d2',
+                      border: '1px solid white',
+                      borderRadius: '50%',
+                      cursor: 'nesw-resize',
+                      zIndex: 2
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      onHotspotDragStart(room.id, 'sw', e);
+                    }}
+                  />
+                  {/* Southeast handle */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '-5px',
+                      right: '-5px',
+                      width: '10px',
+                      height: '10px',
+                      backgroundColor: '#1976d2',
+                      border: '1px solid white',
+                      borderRadius: '50%',
+                      cursor: 'nwse-resize',
+                      zIndex: 2
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      onHotspotDragStart(room.id, 'se', e);
+                    }}
+                  />
+                </>
+              )}
+              
+              {/* Optional polygon renderer for rooms with points */}
+              {hasPolygon && (
+                <svg 
+                  style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    pointerEvents: 'none' 
+                  }}
+                >
+                  <polygon
+                    points={room.points?.map(p => `${p.x},${p.y}`).join(' ')}
+                    fill="rgba(33, 150, 243, 0.3)"
+                    stroke="#2196f3"
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                  />
+                </svg>
+              )}
+            </div>
+          );
+        })}
+        
+        {/* Apply detected rooms button (when rooms are detected but not yet applied) */}
+        {detectedRooms.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '20px',
+              right: '20px',
+              zIndex: 100
+            }}
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                onApplyDetections();
+              }}
+              startIcon={<Add />}
+            >
+              Apply {detectedRooms.length} Detected Rooms
+            </Button>
+          </div>
+        )}
+      </React.Fragment>
+    );
+  };
+  
+  return (
+    <Box 
+      ref={containerRef}
+      sx={{ 
+        position: 'relative', 
+        overflow: 'hidden', 
+        width: '100%', 
+        height: '100%',
+        backgroundColor: '#f5f5f5',
+        cursor: isPanMode 
+          ? (isMeasurementToolActive ? 'crosshair' : 'grab') 
+          : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      {/* Loading overlay */}
+      {isProcessingImage && (
+        <Box sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          zIndex: 1000
+        }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <CircularProgress size={60} />
+            <Typography variant="h6" sx={{ mt: 2 }}>
+              Processing Floor Plan...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Detecting rooms and structures
+            </Typography>
+          </Box>
+        </Box>
+      )}
+      
+      {/* Floor plan image */}
+      <div style={{
+        position: 'absolute',
+        transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
+        transformOrigin: '0 0',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <img 
+          src={floorPlanImage} 
+          alt="Floor Plan" 
+          style={{ 
+            display: 'block',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            width: 'auto',
+            height: 'auto'
+          }}
+          onLoad={handleImageLoad}
+        />
+      </div>
+      
+      {/* Grid lines */}
+      {renderGridLines()}
+      
+      {/* Interactive room elements */}
+      <div style={{
+        position: 'absolute',
+        transform: `translate(${panOffset.x * zoomLevel}px, ${panOffset.y * zoomLevel}px)`,
+        transformOrigin: '0 0'
+      }}>
+        {/* Render regular rooms */}
+        {roomData.map((room) => (
+          <div
+            key={room.id}
+            data-id={room.id}
+            style={getRoomStyle(room)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRoomClick(room.id);
+            }}
+            onMouseDown={(e) => {
+              if (!isEditMode) return;
+              e.stopPropagation();
+              onRoomDragStart(room.id, e);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onEditMenuOpen(room.id);
+            }}
+          >
+            {showLabels && (
               <Typography
-                variant="caption"
+                variant="body2"
                 sx={{
-                  color: 'rgba(0,0,0,0.8)',
-                  fontWeight: 'bold',
-                  textAlign: 'center',
+                  fontSize: `${14 / zoomLevel}px`,
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  maxWidth: '90%',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -277,489 +841,57 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
               >
                 {room.name}
               </Typography>
-              
-              {ComplianceIcon && (
-                <Tooltip title={`${room.compliance}% compliant with standards`}>
-                  <ComplianceIcon
-                    fontSize="small"
-                    color={complianceColor as any}
-                    sx={{ fontSize: '14px' }}
-                  />
-                </Tooltip>
-              )}
-            </Box>
-          )}
-          
-          {/* Area/dimension details */}
-          {showLabels && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(0,0,0,0.7)',
-                fontSize: '0.7rem',
-                backgroundColor: 'rgba(255,255,255,0.5)',
-                padding: '1px 4px',
-                borderRadius: '2px',
-                marginTop: '2px'
-              }}
-            >
-              {room.area.toFixed(1)} m²
-            </Typography>
-          )}
-          
-          {/* Resize handles for selected room in edit mode */}
-          {isEditMode && isSelected && (
-            <>
-              {/* Top-left handle */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: -6,
-                  left: -6,
-                  width: 12,
-                  height: 12,
-                  backgroundColor: theme.palette.primary.main,
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: 'nwse-resize',
-                  zIndex: 10
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onHotspotDragStart(room.id, 'nw', e);
-                }}
-              />
-              
-              {/* Top-right handle */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: -6,
-                  right: -6,
-                  width: 12,
-                  height: 12,
-                  backgroundColor: theme.palette.primary.main,
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: 'nesw-resize',
-                  zIndex: 10
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onHotspotDragStart(room.id, 'ne', e);
-                }}
-              />
-              
-              {/* Bottom-left handle */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: -6,
-                  left: -6,
-                  width: 12,
-                  height: 12,
-                  backgroundColor: theme.palette.primary.main,
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: 'nesw-resize',
-                  zIndex: 10
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onHotspotDragStart(room.id, 'sw', e);
-                }}
-              />
-              
-              {/* Bottom-right handle */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: -6,
-                  right: -6,
-                  width: 12,
-                  height: 12,
-                  backgroundColor: theme.palette.primary.main,
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: 'nwse-resize',
-                  zIndex: 10
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onHotspotDragStart(room.id, 'se', e);
-                }}
-              />
-              
-              {/* Edit controls */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '-30px',
-                  right: '-10px',
-                  display: 'flex',
-                  gap: '2px',
-                  zIndex: 20
-                }}
-              >
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditMenuOpen(room.id);
-                  }}
-                  sx={{ bgcolor: 'white', boxShadow: '0 0 5px rgba(0,0,0,0.3)' }}
-                >
-                  <Edit fontSize="small" />
-                </IconButton>
-                
-                <IconButton
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm(`Delete room: ${room.name}?`)) {
-                      onDelete(room.id);
-                    }
-                  }}
-                  sx={{ bgcolor: 'white', boxShadow: '0 0 5px rgba(0,0,0,0.3)' }}
-                >
-                  <Delete fontSize="small" />
-                </IconButton>
-              </Box>
-            </>
-          )}
-        </Box>
-      );
-    });
-  };
-  
-  // Render detected rooms
-  const renderDetectedRooms = () => {
-    if (!detectedRooms.length) return null;
-    
-    return (
-      <>
-        {detectedRooms.map(room => (
-          <Box
-            key={`detected-${room.id}`}
-            sx={{
-              position: 'absolute',
-              left: room.x,
-              top: room.y,
-              width: room.width,
-              height: room.height,
-              border: '2px dashed',
-              borderColor: 'primary.main',
-              backgroundColor: 'rgba(33, 150, 243, 0.2)',
-              zIndex: 5,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              animation: 'pulse 2s infinite',
-              '@keyframes pulse': {
-                '0%': { boxShadow: '0 0 0 0 rgba(33, 150, 243, 0.4)' },
-                '70%': { boxShadow: '0 0 0 10px rgba(33, 150, 243, 0)' },
-                '100%': { boxShadow: '0 0 0 0 rgba(33, 150, 243, 0)' }
-              }
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'white',
-                backgroundColor: 'rgba(33, 150, 243, 0.7)',
-                padding: '2px 4px',
-                borderRadius: '2px',
-                fontWeight: 'bold'
-              }}
-            >
-              {room.name}
-            </Typography>
+            )}
             
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'white',
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                padding: '1px 3px',
-                borderRadius: '2px',
-                fontSize: '0.7rem'
-              }}
-            >
-              {Math.round(room.confidence * 100)}% confidence
-            </Typography>
-          </Box>
+            {/* Room resize handles */}
+            {renderRoomHandles(room)}
+          </div>
         ))}
-        
-        {/* Button to apply detected rooms */}
-        <Button
-          variant="contained"
-          color="success"
-          size="small"
-          onClick={onApplyDetections}
-          startIcon={<CheckCircle />}
-          sx={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            zIndex: 10,
-            boxShadow: 2
-          }}
-        >
-          Apply {detectedRooms.length} Detected Rooms
-        </Button>
-      </>
-    );
-  };
-  
-  // Render non-compliant areas
-  const renderNonCompliantAreas = () => {
-    if (!nonCompliantAreas.length) return null;
-    
-    return nonCompliantAreas
-      .filter(area => area.type === viewMode)
-      .map(area => {
-        // Determine color based on compliance
-        const getComplianceColor = (compliance: number) => {
-          if (compliance >= 85) return { border: 'success.main', bg: 'rgba(76, 175, 80, 0.1)' };
-          if (compliance >= 70) return { border: 'warning.main', bg: 'rgba(255, 152, 0, 0.1)' };
-          return { border: 'error.main', bg: 'rgba(244, 67, 54, 0.1)' };
-        };
-        
-        const colors = getComplianceColor(area.compliance);
-        
-        return (
-          <Box
-            key={area.id}
-            data-id={area.id}
-            sx={{
-              position: 'absolute',
-              top: area.y,
-              left: area.x,
-              width: area.width,
-              height: area.height,
-              border: '2px dashed',
-              borderColor: colors.border,
-              backgroundColor: colors.bg,
-              borderRadius: '4px',
-              transform: 'translate(-50%, -50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 3
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{
-                fontWeight: 'bold',
-                backgroundColor: 'rgba(255,255,255,0.8)',
-                padding: '2px 4px',
-                borderRadius: '2px'
-              }}
-            >
-              {area.title}
-            </Typography>
-            
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: '0.7rem',
-                backgroundColor: 'rgba(255,255,255,0.7)',
-                padding: '1px 3px',
-                borderRadius: '2px',
-                marginTop: '2px'
-              }}
-            >
-              {area.compliance}% compliant
-            </Typography>
-          </Box>
-        );
-      });
-  };
-  
-  // Render processing overlay
-  const renderProcessingOverlay = () => {
-    if (!isProcessingImage) return null;
-    
-    return (
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999
-        }}
-      >
-        <CircularProgress size={60} sx={{ color: 'white', mb: 2 }} />
-        <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-          Processing Floor Plan
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', maxWidth: '80%' }}>
-          Detecting rooms and analyzing layout. This may take a few moments.
-        </Typography>
-      </Box>
-    );
-  };
-  
-  // Render grid lines
-  const renderGridLines = () => {
-    if (!showGridLines) return null;
-    
-    return (
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
-          pointerEvents: 'none',
-          zIndex: 0
-        }}
-      />
-    );
-  };
-  
-  return (
-    <Box
-      ref={containerRef}
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        backgroundColor: '#f5f5f5',
-        cursor: isPanMode ? 'grab' : 'default'
-      }}
-      onMouseDown={isPanMode ? onPanStart : undefined}
-      onMouseMove={isPanMode ? onPanMove : onRoomDragMove}
-      onMouseUp={isPanMode ? onPanEnd : onRoomDragEnd}
-    >
-      {/* Background image */}
-      {imageLoaded && !imageError ? (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `url(${floorPlanImage})`,
-            backgroundSize: 'contain',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-            transformOrigin: '0 0',
-            transition: isPanMode ? 'none' : 'transform 0.2s ease'
-          }}
-        />
-      ) : (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center'
-          }}
-        >
-          {imageError ? (
-            <>
-              <ErrorOutline sx={{ fontSize: 48, color: 'error.main', mb: 2 }} />
-              <Typography variant="h6" color="error.main">
-                Failed to load floor plan image
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Please check the image path and try again
-              </Typography>
-            </>
-          ) : (
-            <CircularProgress />
-          )}
-        </Box>
-      )}
+      </div>
       
-      {/* Grid lines */}
-      {renderGridLines()}
-      
-      {/* Content container with pan and zoom */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-          transformOrigin: '0 0',
-          transition: isPanMode ? 'none' : 'transform 0.2s ease',
-          pointerEvents: 'none' // Let background handle events
-        }}
-      >
-        {/* Render rooms and other elements */}
-        {renderRooms()}
-        {renderNonCompliantAreas()}
+      {/* Detected rooms overlay */}
+      <div style={{
+        position: 'absolute',
+        transform: `translate(${panOffset.x * zoomLevel}px, ${panOffset.y * zoomLevel}px)`,
+        transformOrigin: '0 0'
+      }}>
         {renderDetectedRooms()}
-      </Box>
+      </div>
       
-      {/* Detection confidence indicator */}
-      {detectionConfidence > 0 && (
-        <Paper
-          elevation={2}
-          sx={{
-            position: 'absolute',
-            bottom: 16,
-            right: 16,
-            padding: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            zIndex: 100
-          }}
-        >
-          <Typography variant="caption">Detection Confidence:</Typography>
-          <Typography variant="body2" fontWeight="bold">
-            {(detectionConfidence * 100).toFixed(0)}%
-          </Typography>
-          <Box
-            sx={{
-              width: 60,
-              height: 6,
-              backgroundColor: '#e0e0e0',
-              borderRadius: 3,
-              overflow: 'hidden'
-            }}
-          >
-            <Box
-              sx={{
-                width: `${detectionConfidence * 100}%`,
-                height: '100%',
-                backgroundColor:
-                  detectionConfidence > 0.8
-                    ? 'success.main'
-                    : detectionConfidence > 0.6
-                    ? 'warning.main'
-                    : 'error.main'
-              }}
-            />
-          </Box>
-        </Paper>
-      )}
+      {/* Measurements */}
+      {renderMeasurements()}
       
-      {/* Processing overlay */}
-      {renderProcessingOverlay()}
+      {/* Control buttons */}
+      <Paper sx={{ 
+        position: 'absolute', 
+        bottom: 16, 
+        right: 16, 
+        p: 1,
+        zIndex: 100
+      }}>
+        <ButtonGroup orientation="vertical" variant="outlined" size="small">
+          <Tooltip title="Fit to view">
+            <IconButton onClick={handleFitToView}>
+              <CropFree />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Reset room positions">
+            <span>
+              <IconButton 
+                onClick={handleResetRoomPositions}
+                disabled={detectedRooms.length === 0 && roomData.length === 0}
+              >
+                <RestartAlt />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title={isMeasurementToolActive ? "Using measurement tool" : "Pan mode"}>
+            <IconButton color={isMeasurementToolActive ? "primary" : "default"}>
+              {isMeasurementToolActive ? <Straighten /> : <ZoomIn />}
+            </IconButton>
+          </Tooltip>
+        </ButtonGroup>
+      </Paper>
     </Box>
   );
 };

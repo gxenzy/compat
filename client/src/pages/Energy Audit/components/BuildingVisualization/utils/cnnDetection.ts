@@ -1,7 +1,9 @@
 import { DetectedRoom, ImageDetectionResult, RoomDetail } from '../interfaces';
+import { Point } from '../interfaces/buildingInterfaces';
 import { getItem, setItem } from '../../../../../utils/storageUtils';
 import { solDataService } from '../services/solDataService';
 import { neuralDetection, detectRoomsWithNeuralNetwork } from './neuralDetection';
+import { ROOM_NAMES } from '../constants/roomNames';
 
 // Class mapping for room types based on actual building data
 const ROOM_CLASS_MAPPING: Record<string, string> = {
@@ -19,73 +21,6 @@ const ROOM_CLASS_MAPPING: Record<string, string> = {
   'lobby': 'Lobby'
 };
 
-// Room name mappings per floor for accurate naming
-const ROOM_NAMES: Record<string, Record<string, string>> = {
-  'ground': {
-    'registrar': 'Registrar Office',
-    'guidance': 'Guidance Office',
-    'edp': 'EDP Section',
-    'accounting': 'Accounting Office'
-  },
-  'mezzanine': {
-    'gsr1': 'GSR 1',
-    'gsr2': 'GSR 2',
-    'researchhub': 'Research Hub',
-    'researchoffice': 'Research/Cares Office',
-    'cisco2': 'Cisco Lab 2',
-    'cisco3': 'Cisco Lab 3',
-    'm1': 'M1',
-    'm2': 'M2',
-    'm3': 'M3',
-    'm4': 'M4',
-    'building': 'Building Maintenance'
-  },
-  'second': {
-    '207': 'Room 207',
-    '208': 'Room 208',
-    '211': 'Room 211',
-    '212': 'Room 212',
-    'repair': 'Repair Room',
-    'hr': 'Human Resource Dept',
-    'cisco1': 'Cisco Lab 1'
-  },
-  'third': {
-    '305': 'Room 305',
-    '306': 'Room 306',
-    '307': 'Room 307',
-    '308': 'Room 308',
-    '309': 'Room 309',
-    '312': 'Room 312',
-    'cisco4': 'Cisco Lab 4',
-    'nursing_faculty': 'Nursing Faculty Room',
-    'nursing_elderly': 'Nursing Elderly',
-    'nursing_skills2': 'Nursing Skills Lab 2'
-  },
-  'fourth': {
-    'kitchen1': 'Kitchen 1 Lab',
-    'cold_kitchen': 'Cold Kitchen',
-    'hm_resto': 'HM Mini Resto',
-    'nursing_skills1': 'Nursing Skills Lab 1',
-    'amphitheater': 'Amphitheater',
-    'anatomy': 'Anatomy Laboratory',
-    'cad_office': 'CAD Office',
-    'opd': 'OPD ER'
-  },
-  'fifth': {
-    'ee_lab': 'EE Laboratory',
-    'biology_lab': 'Biology Laboratory',
-    'chemistry511': '511 Chemistry Lab',
-    'chemistry509': '509 Chemistry Lab',
-    'chemistry_storage': 'Chemistry Storage Room',
-    'physics': '507 Physics Lab',
-    'stockroom': '507 Stockroom Physics',
-    'tool_room': 'Old Tool Room',
-    'engineering_faculty': 'Old Engineering Faculty',
-    'ece_lab': 'Old ECE Laboratory',
-    'coe_lab': 'Old COE Laboratory'
-  }
-};
-
 // Track processing state
 let isProcessing = false;
 
@@ -100,23 +35,34 @@ const loadImage = (imageSrc: string): Promise<HTMLImageElement> => {
     // Set timeout to prevent hanging
     const timeout = setTimeout(() => {
       reject(new Error('Image loading timed out'));
-    }, 10000);
+    }, 15000); // Longer timeout for potentially slow connections
     
     img.onload = () => {
       clearTimeout(timeout);
       if (img.width > 0 && img.height > 0) {
+        console.log(`Traditional detection: Image loaded with dimensions ${img.width}x${img.height}`);
         resolve(img);
       } else {
-        reject(new Error('Image has invalid dimensions'));
+        reject(new Error(`Image has invalid dimensions: ${img.width}x${img.height}`));
       }
     };
     
-    img.onerror = () => {
+    img.onerror = (e) => {
       clearTimeout(timeout);
+      console.error('Image loading error:', e);
       reject(new Error(`Failed to load image: ${imageSrc}`));
     };
     
-    img.src = imageSrc;
+    // Check if src is valid before setting
+    if (!imageSrc || typeof imageSrc !== 'string') {
+      clearTimeout(timeout);
+      reject(new Error(`Invalid image source: ${imageSrc}`));
+      return;
+    }
+    
+    // Add timestamp to bypass cache if needed
+    const cacheBuster = imageSrc.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
+    img.src = imageSrc + cacheBuster;
   });
 };
 
@@ -149,11 +95,11 @@ const removeTextElements = (ctx: CanvasRenderingContext2D): void => {
   
   // Clear standard areas that typically contain text
   // Bottom margin (page numbers, figure text)
-  const bottomThreshold = height * 0.9;
+  const bottomThreshold = height * 0.92;
   // Top margin (title text, figure numbers)
-  const titleAreaThreshold = height * 0.1;
+  const titleAreaThreshold = height * 0.08;
   // Side margins (legends, notes)
-  const sideThreshold = width * 0.05;
+  const sideThreshold = width * 0.07;
   
   // Remove text at the bottom (page numbers, figure labels)
   for (let y = Math.floor(bottomThreshold); y < height; y++) {
@@ -166,7 +112,7 @@ const removeTextElements = (ctx: CanvasRenderingContext2D): void => {
     }
   }
   
-  // Remove text at the top (title area)
+  // Remove text at the top (title area, "Power Layout", "Lighting Layout")
   for (let y = 0; y < titleAreaThreshold; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
@@ -190,6 +136,31 @@ const removeTextElements = (ctx: CanvasRenderingContext2D): void => {
     
     // Right side
     for (let x = width - sideThreshold; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      data[idx] = 255;
+      data[idx + 1] = 255;
+      data[idx + 2] = 255;
+      data[idx + 3] = 255;
+    }
+  }
+  
+  // Enhanced detection for "Figure" labels which are often in the corners
+  const cornerSize = Math.min(width, height) * 0.15;
+  
+  // Bottom-right corner (often contains figure numbers)
+  for (let y = height - cornerSize; y < height; y++) {
+    for (let x = width - cornerSize; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      data[idx] = 255;
+      data[idx + 1] = 255;
+      data[idx + 2] = 255;
+      data[idx + 3] = 255;
+    }
+  }
+  
+  // Bottom-left corner (sometimes contains page references)
+  for (let y = height - cornerSize; y < height; y++) {
+    for (let x = 0; x < cornerSize; x++) {
       const idx = (y * width + x) * 4;
       data[idx] = 255;
       data[idx + 1] = 255;
@@ -1163,7 +1134,7 @@ export const detectRoomsFromImage = async (
 /**
  * Traditional algorithm-based room detection (used as fallback)
  */
-const traditionalRoomDetection = async (
+export const traditionalRoomDetection = async (
   imageSrc: string, 
   containerWidth: number, 
   containerHeight: number
@@ -1640,63 +1611,75 @@ export const calculateGridLayout = (
  * Convert detected rooms to room details
  */
 export const convertDetectedRoomsToRoomDetails = (detectedRooms: DetectedRoom[]): RoomDetail[] => {
-  if (!detectedRooms || detectedRooms.length === 0) return [];
-  
   return detectedRooms.map(room => {
-    // Get default lux requirement based on room type
-    const luxRequirements: Record<string, number> = {
-      'office': 500,
-      'conference': 400,
-      'restroom': 150,
-      'kitchen': 500,
-      'storage': 150,
-      'electrical': 300,
-      'hallway': 150,
-      'stairs': 200,
-      'reception': 300,
-      'lobby': 200,
-      'classroom': 500,
-      'laboratory': 500,
-      'server': 400,
-      'default': 300
-    };
+    // Calculate room dimensions in meters (approximate)
+    const roomWidth = room.width || 200;
+    const roomHeight = room.height || 150;
+    const lengthInMeters = roomWidth / 50; // Convert pixels to meters
+    const widthInMeters = roomHeight / 50;
+    const areaInMeters = lengthInMeters * widthInMeters;
     
-    const roomTypeMapping: Record<string, string> = ROOM_CLASS_MAPPING;
+    // Estimate default values based on room type and dimensions
+    let roomType = room.type || 'office';
+    let requiredLux = 300;
+    let recommendedFixtures = Math.ceil(areaInMeters / 10); // 1 fixture per 10 sq meters
     
-    const roomType = room.type || 'default';
-    const requiredLux = luxRequirements[roomType] || 300;
+    // Adjust values based on room type
+    if (roomType === 'conference') {
+      requiredLux = 400;
+      recommendedFixtures = Math.ceil(areaInMeters / 8);
+    } else if (roomType === 'classroom') {
+      requiredLux = 500;
+      recommendedFixtures = Math.ceil(areaInMeters / 6);
+    } else if (roomType === 'storage') {
+      requiredLux = 200;
+      recommendedFixtures = Math.ceil(areaInMeters / 15);
+    } else if (roomType === 'hallway') {
+      requiredLux = 150;
+      recommendedFixtures = Math.ceil(areaInMeters / 20);
+    }
     
-    // Convert pixels to meters (approximate)
-    const length = Math.max(room.width, room.height) / 50; // 50px = 1m
-    const width = Math.min(room.width, room.height) / 50;
-    const area = length * width;
+    // Determine if this is a polygon room
+    const hasPolygon = (room as any).points && (room as any).points.length >= 3;
+    const roomShape = hasPolygon ? 'poly' : 'rect';
     
-    // Calculate recommended fixtures
-    const recommendedFixtures = Math.ceil(area * requiredLux / 5000);
-    
+    // Create a fully editable room detail object
     return {
       id: room.id,
-      name: room.name,
-      length,
-      width,
-      height: 3, // Standard ceiling height
-      area,
-      roomType,
+      name: room.name || `Room ${Math.floor(Math.random() * 100)}`,
+      roomType: roomType,
+      length: lengthInMeters,
+      width: widthInMeters,
+      height: 3, // Default ceiling height
+      area: areaInMeters,
       coords: {
         x: room.x,
         y: room.y,
-        width: room.width,
-        height: room.height
+        width: roomWidth,
+        height: roomHeight
       },
       reflectanceCeiling: 0.7,
       reflectanceWalls: 0.5,
       reflectanceFloor: 0.2,
       maintenanceFactor: 0.8,
-      requiredLux,
-      recommendedFixtures,
+      requiredLux: requiredLux,
+      recommendedFixtures: recommendedFixtures,
       actualFixtures: recommendedFixtures,
       compliance: 100,
-      shape: 'rect' // Default shape is rectangular
+      shape: roomShape, // Use determined shape
+      editable: true, // Ensure the room is editable
+      isDetected: true, // Mark as detected for reference
+      
+      // Always include points array (even if empty) for consistency
+      points: hasPolygon ? (room as any).points : [],
+      
+      // Add lighting design properties
+      lightingFixtures: [],
+      lightingCalculations: {
+        averageLux: requiredLux,
+        uniformity: 0.7,
+        energyEfficiency: 85
+      }
     };
   });
 };

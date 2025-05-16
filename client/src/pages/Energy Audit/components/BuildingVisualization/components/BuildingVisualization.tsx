@@ -181,7 +181,7 @@ const BuildingVisualization: React.FC = () => {
                 reflectanceFloor: 0.2,
                 maintenanceFactor: 0.8,
                 energyUsage: 450,
-                shape: 'rect' as 'rect' | 'polygon'
+                shape: 'rect'
               },
               {
                 id: 'room-2',
@@ -201,7 +201,7 @@ const BuildingVisualization: React.FC = () => {
                 reflectanceFloor: 0.2,
                 maintenanceFactor: 0.8,
                 energyUsage: 275,
-                shape: 'rect' as 'rect' | 'polygon'
+                shape: 'rect'
               },
               {
                 id: 'room-3',
@@ -221,7 +221,7 @@ const BuildingVisualization: React.FC = () => {
                 reflectanceFloor: 0.2,
                 maintenanceFactor: 0.8,
                 energyUsage: 180,
-                shape: 'rect' as 'rect' | 'polygon'
+                shape: 'rect'
               }
             ],
             loadSchedules: []
@@ -248,7 +248,8 @@ const BuildingVisualization: React.FC = () => {
           description: 'This area has insufficient lighting levels compared to standards',
           compliance: 65,
           recommendations: ['Increase number of fixtures', 'Use higher lumen output bulbs'],
-          severity: 'medium'
+          severity: 'medium',
+          issueType: 'illuminance'
         };
         
         const area2: NonCompliantArea = {
@@ -262,7 +263,8 @@ const BuildingVisualization: React.FC = () => {
           description: 'This area has too many devices on a single circuit',
           compliance: 70,
           recommendations: ['Redistribute loads', 'Add additional circuit'],
-          severity: 'high'
+          severity: 'high',
+          issueType: 'overload'
         };
         
         setNonCompliantAreas([area1, area2]);
@@ -485,16 +487,18 @@ const BuildingVisualization: React.FC = () => {
             {isEditMode ? 'Exit Edit Mode' : 'Edit Mode'}
           </Button>
           
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            startIcon={<Save />}
-            onClick={saveBuildingData}
-            disabled={isLoading}
-          >
-            Save
-          </Button>
+          <span>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              startIcon={<Save />}
+              onClick={saveBuildingData}
+              disabled={isLoading}
+            >
+              Save
+            </Button>
+          </span>
         </Box>
       </Paper>
     );

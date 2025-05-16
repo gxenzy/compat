@@ -111,7 +111,10 @@ This system ensures that circuit design decisions made in one calculator are aut
 
 ### Installation
 1. Clone the repository
-2. Install dependencies with `npm run install-all`
+2. Install dependencies with `npm run setup-deps`
+   - This script will ensure all node_modules are properly installed in the root, client, and server directories
+   - It also creates necessary .env files if they don't exist
+   - For a complete rebuild of node_modules, use `npm run setup-deps -- --force`
 3. Configure database settings by running `npm run setup:db`
 4. Verify database connection with `npm run verify:db`
 5. Run migrations with `npm run migrate`
@@ -160,6 +163,34 @@ Common database issues and solutions:
 | Connection refused | Make sure MySQL is running on the specified host and port |
 | Database doesn't exist | Run `npm run verify:db` to create it |
 | Migration errors | Check the migration files in `server/src/database/migrations` |
+
+### Dependency Management and Troubleshooting
+This project has a dedicated dependency management system to ensure consistent installations across different environments. If you encounter dependency-related issues after cloning the repository, try these steps:
+
+1. Run the dependency setup script:
+   ```
+   npm run setup-deps
+   ```
+   This script checks and installs missing dependencies in all project directories (root, client, server).
+
+2. For a clean rebuild of all node_modules, use the force flag:
+   ```
+   npm run setup-deps -- --force
+   ```
+   This will delete existing node_modules folders and perform a fresh installation.
+
+3. If specific version conflicts occur, check the package.json files in the root, client, and server directories to ensure compatible versions.
+
+4. The project also includes a postclone script that runs automatically after git clone operations to set up dependencies (requires manual configuration in git hooks).
+
+Common dependency issues and solutions:
+
+| Issue | Solution |
+|-------|----------|
+| Version mismatch errors | Run `npm run setup-deps -- --force` to reinstall all dependencies |
+| Missing peer dependencies | Check the console output for specific packages and install them manually |
+| Package not found errors | Ensure your npm registry is accessible and not blocked by a firewall |
+| Build errors after pull | Run `npm run setup-deps` to install any new dependencies added by other developers |
 
 ### Running Migrations
 To set up or update the database schema, run:

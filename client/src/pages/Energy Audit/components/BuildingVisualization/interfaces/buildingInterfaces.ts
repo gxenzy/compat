@@ -1,19 +1,10 @@
 /**
- * Interface definitions for Building Visualization module
+ * Building Visualization Interfaces
+ * Defines all type interfaces used in the building visualization components
  */
 
 /**
- * Room coordinates information
- */
-export interface RoomCoords {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Point coordinates for polygon shapes
+ * Point coordinates
  */
 export interface Point {
   x: number;
@@ -21,67 +12,133 @@ export interface Point {
 }
 
 /**
- * Room detected from floor plan
+ * Room coordinates and dimensions
+ */
+export interface RoomCoordinates {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Room detected by computer vision or neural networks
  */
 export interface DetectedRoom {
   id: string;
   name: string;
-  type: string;
+  type?: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  confidence: number;
-  polygon?: Point[];
+  confidence?: number;
+  points?: Point[];  // For polygon room support
+  polygon?: Point[]; // For backward compatibility
+  editable?: boolean; // Indicates if the room can be edited
+  isDetected?: boolean; // Indicates if the room was detected automatically
+  shape?: 'rect' | 'poly' | 'circle';
 }
 
 /**
- * Room detail containing all information for visualization
+ * Detailed room information
  */
 export interface RoomDetail {
   id: string;
   name: string;
-  length: number;
+  roomType: string;
+  floor?: string; // Floor identifier
+  area: number;
+  length?: number;
   width: number;
   height: number;
-  area: number;
-  roomType: string;
-  coords: RoomCoords;
-  reflectanceCeiling: number;
-  reflectanceWalls: number;
-  reflectanceFloor: number;
-  maintenanceFactor: number;
+  capacity?: number; // Max occupants
+  coords: RoomCoordinates;
+  reflectanceCeiling?: number;
+  reflectanceWalls?: number;
+  reflectanceFloor?: number;
+  maintenanceFactor?: number;
   requiredLux: number;
   recommendedFixtures?: number;
   actualFixtures?: number;
-  compliance?: number;
-  shape?: 'rect' | 'polygon';
+  compliance: number; // Percentage compliance with standards
+  shape?: 'rect' | 'poly' | 'circle'; // Shape of the room
+  energyUsage?: number; // Energy consumption in kWh/month
   points?: Point[];
-  energyUsage?: number;
-  powerDetails?: {
-    connectedLoad: number;
-    demandLoad: number;
-    voltage: number;
-    current: number;
-    powerFactor: number;
-  };
 }
 
 /**
- * Non-compliant area in floor plan
+ * Non-compliant area within a floor plan
  */
 export interface NonCompliantArea {
   id: string;
-  type: 'lighting' | 'power';
   title: string;
-  description: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  type: 'lighting' | 'power';
   compliance: number;
-  recommendations: string[];
-  severity: 'low' | 'medium' | 'high';
+  issueType: string;
+  details?: string;
+  description?: string;
+  recommendations?: string[];
+  severity?: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Image detection result
+ */
+export interface ImageDetectionResult {
+  rooms: DetectedRoom[];
+  orientation: 'landscape' | 'portrait';
+  confidenceScore: number;
+}
+
+/**
+ * Floor plan data
+ */
+export interface FloorPlan {
+  id: string;
+  floorId: string;
+  viewMode: 'lighting' | 'power';
+  imagePath: string;
+  rooms: RoomDetail[];
+  nonCompliantAreas?: NonCompliantArea[];
+  lastUpdated?: Date;
+}
+
+/**
+ * Measurement data
+ */
+export interface Measurement {
+  id: string;
+  start: Point;
+  end: Point;
+  distance: number;
+  label: string;
+}
+
+/**
+ * Room detection settings
+ */
+export interface RoomDetectionSettings {
+  sensitivity: number;
+  minRoomSize: number;
+  maxRoomSize: number;
+  enableTextRemoval: boolean;
+  useNeuralDetection: boolean;
+}
+
+/**
+ * User edits for tracking changes
+ */
+export interface UserEdit {
+  timestamp: number;
+  userId: string;
+  action: 'add' | 'edit' | 'delete' | 'move' | 'resize';
+  targetId: string;
+  details?: any;
 }
 
 /**
