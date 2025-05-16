@@ -30,9 +30,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    // Temporarily allow any password for testing
-    // TODO: Replace with proper password verification in production
-    const passwordMatches = password === 'password123' || await bcrypt.compare(password, user.password);
+    // Verify password with bcrypt
+    const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {
       logger.warn(`Login failed: Invalid password for user - ${username}`);

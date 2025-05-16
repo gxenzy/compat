@@ -334,4 +334,97 @@ The admin interface allows management of:
 Use the validation script to check database setup:
 ```
 node src/scripts/validate-compliance-tables.js
-``` 
+```
+
+# Server for Energy Audit Application
+
+## Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Set up environment variables:
+```
+cp .env.example .env
+```
+Edit the `.env` file with your database credentials and other configuration.
+
+## Database Setup
+
+### Run Migrations
+
+To create the database tables:
+
+```bash
+npx knex migrate:latest
+```
+
+### Run Seeders
+
+To populate the database with initial data:
+
+```bash
+npx knex seed:run
+```
+
+If you want to run a specific seeder:
+
+```bash
+npx knex seed:run --specific=20230920000001_seed_standards.js
+```
+
+## Standards Management Tables
+
+The application includes three tables for standards management:
+
+1. **building_type_standards**: Standards related to building types (commercial, residential, etc.)
+2. **project_type_standards**: Standards related to project types (lighting retrofit, HVAC upgrade, etc.)
+3. **compliance_recommendations**: Recommendations for addressing non-compliance with standards
+
+### Running Migrations for Standards Tables
+
+To create just the standards tables:
+
+```bash
+npx knex migrate:up 20230920000001_create_building_type_standards.js
+npx knex migrate:up 20230920000002_create_project_type_standards.js
+npx knex migrate:up 20230920000003_create_compliance_recommendations.js
+```
+
+## API Endpoints
+
+### Building Type Standards
+
+- `GET /api/compliance/building-standards/all` - Get all building type standards
+- `GET /api/compliance/building-standards?buildingType=commercial` - Get standards for a specific building type
+- `POST /api/compliance/building-standards` - Create a new building type standard
+- `PUT /api/compliance/building-standards/:id` - Update a building type standard
+- `DELETE /api/compliance/building-standards/:id` - Delete a building type standard
+
+### Project Type Standards
+
+- `GET /api/compliance/project-standards/all` - Get all project type standards
+- `GET /api/compliance/project-standards?projectType=lighting_retrofit` - Get standards for a specific project type
+- `POST /api/compliance/project-standards` - Create a new project type standard
+- `PUT /api/compliance/project-standards/:id` - Update a project type standard
+- `DELETE /api/compliance/project-standards/:id` - Delete a project type standard
+
+### Compliance Recommendations
+
+- `GET /api/compliance/recommendations/all` - Get all compliance recommendations
+- `GET /api/compliance/recommendations?calculatorType=lighting` - Get recommendations by criteria
+- `POST /api/compliance/recommendations` - Create a new compliance recommendation
+- `PUT /api/compliance/recommendations/:id` - Update a compliance recommendation
+- `DELETE /api/compliance/recommendations/:id` - Delete a compliance recommendation
+
+## Development
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+This will start the server with nodemon for automatic reloading during development. 

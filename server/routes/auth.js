@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/UserSQL');
 const auth = require('../middleware/auth');
+const publicRoute = require('../middleware/publicRoute');
 const validator = require('validator');
 const rateLimit = require('express-rate-limit');
 const { addRefreshToken } = require('./refreshToken');
@@ -57,10 +58,8 @@ function validateUserInput({ username, password, email, firstName, lastName, rol
   return errors;
 };
 
-// @route   POST /api/auth/login
-// @desc    Authenticate user & get token
-// @access  Public
-router.post('/login', authLimiter, async (req, res) => {
+// Create a separate handler function for login that can be reused
+const loginHandler = async (req, res) => {
   try {
     const { username, password } = req.body;
     console.log('LOGIN ATTEMPT:', username);
@@ -98,6 +97,10 @@ router.post('/login', authLimiter, async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE },
       (err, token) => {
         if (err) throw err;
+        
+        // IMPORTANT: Client needs token in response body, not just as a cookie
+        // Ensure token is included in the response JSON
+        
         // Set token as HttpOnly secure cookie
         res.cookie('token', token, {
           httpOnly: true,
@@ -105,14 +108,17 @@ router.post('/login', authLimiter, async (req, res) => {
           sameSite: 'strict',
           maxAge: parseInt(process.env.JWT_EXPIRE_MS) || 3600000, // fallback 1 hour
         });
+        
         // Generate refresh token
         const refreshToken = jwt.sign(
           payload,
           process.env.JWT_REFRESH_SECRET,
           { expiresIn: process.env.JWT_REFRESH_EXPIRE }
         );
+        
         // Store refresh token
         addRefreshToken(refreshToken);
+        
         // Set refresh token as HttpOnly cookie
         res.cookie('refreshToken', refreshToken, {
           httpOnly: true,
@@ -120,15 +126,20 @@ router.post('/login', authLimiter, async (req, res) => {
           sameSite: 'strict',
           maxAge: parseInt(process.env.JWT_REFRESH_EXPIRE_MS) || 7 * 24 * 3600000, // fallback 7 days
         });
-        res.json({ user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          settings: user.settings
-        }});
+        
+        // Return response with user data AND token for client storage
+        res.json({
+          token: token, // This is the critical line - token must be in response JSON
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            settings: user.settings
+          }
+        });
       }
     );
 
@@ -136,7 +147,12 @@ router.post('/login', authLimiter, async (req, res) => {
     console.error(err.message);
     res.status(500).json({ message: 'Server error' });
   }
-});
+};
+
+// @route   POST /api/auth/login
+// @desc    Authenticate user & get token
+// @access  Public
+router.post('/login', [authLimiter, publicRoute], loginHandler);
 
 // @route   POST /api/auth/register
 // @desc    Register a new user (admin only)
@@ -214,3 +230,5 @@ router.get('/user', auth, async (req, res) => {
 });
 
 module.exports = router;
+// Export the login handler function so it can be used directly by other routes
+module.exports.handle = loginHandler;

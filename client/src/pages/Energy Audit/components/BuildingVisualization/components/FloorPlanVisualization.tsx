@@ -19,10 +19,12 @@ import {
   Check,
   Close,
   Straighten,
-  Add
+  Add,
+  WarningAmber
 } from '@mui/icons-material';
 import { RoomDetail, DetectedRoom, NonCompliantArea, Point } from '../interfaces/buildingInterfaces';
 import { MeasurementState, Measurement } from '../utils/measurementTool';
+import '../BuildingVisualization.css';
 
 interface FloorPlanVisualizationProps {
   floorPlanImage: string;
@@ -58,6 +60,7 @@ interface FloorPlanVisualizationProps {
   handleMeasurementStart: (e: React.MouseEvent) => void;
   handleMeasurementMove: (e: React.MouseEvent) => void;
   handleMeasurementEnd: (e: React.MouseEvent) => void;
+  viewOrientation: 'landscape' | 'portrait';
 }
 
 /**
@@ -97,12 +100,15 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
   measurementState,
   handleMeasurementStart,
   handleMeasurementMove,
-  handleMeasurementEnd
+  handleMeasurementEnd,
+  viewOrientation
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   
   // Get container dimensions on mount and resize
   useEffect(() => {
@@ -123,34 +129,31 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
   
-  // Handle image load to get dimensions and fit to view
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
+  // Load floor plan image
+  useEffect(() => {
+    if (floorPlanImage) {
+      const img = new Image();
+      img.onload = () => {
     const imgWidth = img.naturalWidth;
     const imgHeight = img.naturalHeight;
-    
-    setImageSize({ 
-      width: imgWidth, 
-      height: imgHeight 
-    });
-    
-    // Auto-fit image to view on initial load
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = containerRef.current.clientHeight;
+        console.log('Image loaded successfully:', imgWidth, 'x', imgHeight);
+        setImageLoaded(true);
+        setImageError(null);
+        setImageSize({ width: imgWidth, height: imgHeight });
       
-      // Calculate the best fit zoom level
-      const widthRatio = containerWidth / imgWidth;
-      const heightRatio = containerHeight / imgHeight;
-      const bestFitZoom = Math.min(widthRatio, heightRatio) * 0.9; // 90% to add margin
-      
-      // Only auto-fit if the image is larger than the container
-      if (imgWidth > containerWidth || imgHeight > containerHeight) {
-        // Create custom event to trigger fit to view
+        // Auto-fit image to view
         setTimeout(() => handleFitToView(), 100);
+      };
+      
+      img.onerror = () => {
+        console.error('Failed to load floor plan image:', floorPlanImage);
+        setImageError(`Failed to load image: ${floorPlanImage}`);
+        setImageLoaded(false);
+      };
+      
+      img.src = floorPlanImage;
       }
-    }
-  };
+  }, [floorPlanImage]);
   
   // Fit to view handler
   const handleFitToView = () => {
@@ -424,97 +427,66 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
     );
   };
   
+  // Room styling based on view mode and compliance
+  const getRoomClasses = (room: RoomDetail) => {
+    const isSelected = room.id === (selectedRoom?.id ?? '');
+    let classes = 'room-box';
+    
+    if (isSelected) {
+      classes += ' selected';
+    }
+    
+    // Calculate compliance class if viewing lighting
+    if (viewMode === 'lighting') {
+      const compliance = room.compliance || 0;
+      
+      if (compliance >= 90) {
+        classes += ' lighting-good';
+      } else if (compliance >= 70) {
+        classes += ' lighting-acceptable';
+      } else {
+        classes += ' lighting-poor';
+      }
+    } else {
+      classes += ' power';
+    }
+    
+    return classes;
+  };
+  
   // Render room resize handles
   const renderRoomHandles = (room: RoomDetail) => {
     if (!isEditMode || room.id !== (selectedRoom?.id ?? '')) return null;
     
     const { x, y, width, height } = room.coords;
     
-    // Handle positions
+    // Handle positions (8 handles for more precise control)
     const handles = [
-      { position: 'nw', x, y },
-      { position: 'ne', x: x + width, y },
-      { position: 'sw', x, y: y + height },
-      { position: 'se', x: x + width, y: y + height }
+      { position: 'nw', x, y },                       // Northwest
+      { position: 'n', x: x + width / 2, y },          // North
+      { position: 'ne', x: x + width, y },             // Northeast
+      { position: 'e', x: x + width, y: y + height / 2 }, // East
+      { position: 'se', x: x + width, y: y + height }, // Southeast
+      { position: 's', x: x + width / 2, y: y + height }, // South
+      { position: 'sw', x, y: y + height },            // Southwest
+      { position: 'w', x, y: y + height / 2 }          // West
     ];
     
     return handles.map(handle => (
       <div
         key={`handle-${room.id}-${handle.position}`}
+        className={`resize-handle ${handle.position}`}
         style={{
-          position: 'absolute',
-          width: '12px',
-          height: '12px',
-          backgroundColor: 'white',
-          border: '2px solid #1976d2',
-          borderRadius: '50%',
-          transform: 'translate(-50%, -50%)',
-          cursor: handle.position === 'nw' || handle.position === 'se' ? 'nwse-resize' : 'nesw-resize',
           left: `${handle.x * zoomLevel}px`,
           top: `${handle.y * zoomLevel}px`,
-          zIndex: 100
         }}
         onMouseDown={(e) => {
           e.stopPropagation();
+          e.preventDefault(); // Prevent text selection during drag
           onHotspotDragStart(room.id, handle.position, e);
         }}
       />
     ));
-  };
-  
-  // Room styling based on view mode and compliance
-  const getRoomStyle = (room: RoomDetail) => {
-    const isSelected = room.id === (selectedRoom?.id ?? '');
-    const baseStyle: React.CSSProperties = {
-      position: 'absolute',
-      left: `${room.coords.x * zoomLevel}px`,
-      top: `${room.coords.y * zoomLevel}px`,
-      width: `${room.coords.width * zoomLevel}px`,
-      height: `${room.coords.height * zoomLevel}px`,
-      borderRadius: '4px',
-      boxSizing: 'border-box',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      cursor: isEditMode ? 'move' : 'pointer',
-      transition: 'background-color 0.2s, border 0.2s',
-      zIndex: isSelected ? 10 : 1
-    };
-    
-    // Calculate compliance color if viewing lighting
-    if (viewMode === 'lighting') {
-      const compliance = room.compliance || 0;
-      
-      if (compliance >= 90) {
-        // Good compliance - green
-        return {
-          ...baseStyle,
-          backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.5)' : 'rgba(76, 175, 80, 0.2)',
-          border: isSelected ? '2px solid #2e7d32' : '1px solid #81c784'
-        };
-      } else if (compliance >= 70) {
-        // Acceptable compliance - yellow
-        return {
-          ...baseStyle,
-          backgroundColor: isSelected ? 'rgba(255, 235, 59, 0.5)' : 'rgba(255, 235, 59, 0.2)',
-          border: isSelected ? '2px solid #f9a825' : '1px solid #fdd835'
-        };
-      } else {
-        // Poor compliance - red
-        return {
-          ...baseStyle,
-          backgroundColor: isSelected ? 'rgba(244, 67, 54, 0.5)' : 'rgba(244, 67, 54, 0.2)',
-          border: isSelected ? '2px solid #c62828' : '1px solid #e57373'
-        };
-      }
-    } else {
-      // Power view - use blue hues
-      return {
-        ...baseStyle,
-        backgroundColor: isSelected ? 'rgba(33, 150, 243, 0.5)' : 'rgba(33, 150, 243, 0.2)',
-        border: isSelected ? '2px solid #1565c0' : '1px solid #64b5f6'
-      };
-    }
   };
   
   // Render detected rooms (from detection algorithm)
@@ -523,205 +495,41 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
     
     return (
       <React.Fragment>
-        {/* Render detected rooms with the same style as normal rooms but with indication they're detected */}
-        {detectedRooms.map(room => {
-          // Determine if this room has polygon points
-          const hasPolygon = room.points && room.points.length > 0;
-          
-          // Base style for all detected rooms
-          const baseStyle: React.CSSProperties = {
-            position: 'absolute',
+        {detectedRooms.map(room => (
+          <div
+            key={`detected-${room.id}`}
+            data-id={room.id}
+            className="detected-room"
+            style={{
             left: `${room.x * zoomLevel}px`,
             top: `${room.y * zoomLevel}px`,
             width: `${room.width * zoomLevel}px`,
             height: `${room.height * zoomLevel}px`,
-            borderRadius: '4px',
-            boxSizing: 'border-box',
             cursor: isPanMode ? 'grab' : 'pointer',
-            zIndex: 5, // Higher than regular rooms to show on top
-            // Semi-transparent blue for detected rooms
-            backgroundColor: 'rgba(33, 150, 243, 0.2)',
-            // Dashed border to indicate it's a detected room
-            border: '2px dashed #2196f3',
-            // Add a subtle animation to highlight these are detected rooms
-            animation: 'pulse 2s infinite alternate'
-          };
-          
-          return (
-            <div
-              key={`detected-${room.id}`}
-              data-id={room.id}
-              style={baseStyle}
+            }}
               onClick={(e) => {
                 e.stopPropagation();
-                // Make detected rooms clickable like regular rooms
                 onRoomClick(room.id);
               }}
               onMouseDown={(e) => {
                 if (!isEditMode) return;
                 e.stopPropagation();
-                // Make detected rooms draggable like regular rooms
                 onRoomDragStart(room.id, e);
               }}
               onContextMenu={(e) => {
-                // Add right-click menu support
                 if (!isEditMode) return;
                 e.preventDefault();
                 e.stopPropagation();
                 onEditMenuOpen(room.id);
               }}
             >
-              {/* Room label if labels are enabled */}
               {showLabels && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    fontSize: `${Math.max(12, 14 * zoomLevel)}px`,
-                    fontWeight: 'bold',
-                    color: '#1976d2',
-                    textShadow: '0 0 4px white',
-                    whiteSpace: 'nowrap',
-                    pointerEvents: 'none',
-                    textAlign: 'center'
-                  }}
-                >
+              <div className="room-label" style={{ fontSize: `${Math.max(12, 14 * zoomLevel)}px` }}>
                   {room.name || 'Detected Room'}
                 </div>
               )}
-              
-              {/* Hotspot handles for resizing (only in edit mode) */}
-              {isEditMode && (
-                <>
-                  {/* Northwest handle */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '-5px',
-                      left: '-5px',
-                      width: '10px',
-                      height: '10px',
-                      backgroundColor: '#1976d2',
-                      border: '1px solid white',
-                      borderRadius: '50%',
-                      cursor: 'nwse-resize',
-                      zIndex: 2
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      onHotspotDragStart(room.id, 'nw', e);
-                    }}
-                  />
-                  {/* Northeast handle */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '-5px',
-                      right: '-5px',
-                      width: '10px',
-                      height: '10px',
-                      backgroundColor: '#1976d2',
-                      border: '1px solid white',
-                      borderRadius: '50%',
-                      cursor: 'nesw-resize',
-                      zIndex: 2
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      onHotspotDragStart(room.id, 'ne', e);
-                    }}
-                  />
-                  {/* Southwest handle */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '-5px',
-                      left: '-5px',
-                      width: '10px',
-                      height: '10px',
-                      backgroundColor: '#1976d2',
-                      border: '1px solid white',
-                      borderRadius: '50%',
-                      cursor: 'nesw-resize',
-                      zIndex: 2
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      onHotspotDragStart(room.id, 'sw', e);
-                    }}
-                  />
-                  {/* Southeast handle */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '-5px',
-                      right: '-5px',
-                      width: '10px',
-                      height: '10px',
-                      backgroundColor: '#1976d2',
-                      border: '1px solid white',
-                      borderRadius: '50%',
-                      cursor: 'nwse-resize',
-                      zIndex: 2
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      onHotspotDragStart(room.id, 'se', e);
-                    }}
-                  />
-                </>
-              )}
-              
-              {/* Optional polygon renderer for rooms with points */}
-              {hasPolygon && (
-                <svg 
-                  style={{ 
-                    position: 'absolute', 
-                    top: 0, 
-                    left: 0, 
-                    width: '100%', 
-                    height: '100%', 
-                    pointerEvents: 'none' 
-                  }}
-                >
-                  <polygon
-                    points={room.points?.map(p => `${p.x},${p.y}`).join(' ')}
-                    fill="rgba(33, 150, 243, 0.3)"
-                    stroke="#2196f3"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                  />
-                </svg>
-              )}
-            </div>
-          );
-        })}
-        
-        {/* Apply detected rooms button (when rooms are detected but not yet applied) */}
-        {detectedRooms.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '20px',
-              right: '20px',
-              zIndex: 100
-            }}
-          >
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onApplyDetections();
-              }}
-              startIcon={<Add />}
-            >
-              Apply {detectedRooms.length} Detected Rooms
-            </Button>
           </div>
-        )}
+        ))}
       </React.Fragment>
     );
   };
@@ -730,15 +538,12 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
     <Box 
       ref={containerRef}
       sx={{ 
-        position: 'relative', 
-        overflow: 'hidden', 
         width: '100%', 
         height: '100%',
-        backgroundColor: '#f5f5f5',
-        cursor: isPanMode 
-          ? (isMeasurementToolActive ? 'crosshair' : 'grab') 
-          : 'default'
+        position: 'relative',
+        overflow: 'hidden'
       }}
+      className={`floorplan-container ${viewOrientation}-container`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -746,7 +551,8 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
     >
       {/* Loading overlay */}
       {isProcessingImage && (
-        <Box sx={{
+        <Box
+          sx={{
           position: 'absolute',
           top: 0,
           left: 0,
@@ -755,62 +561,60 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          zIndex: 1000
-        }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <CircularProgress size={60} />
-            <Typography variant="h6" sx={{ mt: 2 }}>
-              Processing Floor Plan...
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            zIndex: 50,
+          }}
+        >
+          <CircularProgress />
+          <Typography variant="body1" sx={{ ml: 2 }}>
+            Processing floor plan...
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Detecting rooms and structures
-            </Typography>
-          </Box>
         </Box>
       )}
       
-      {/* Floor plan image */}
-      <div style={{
-        position: 'absolute',
+      {/* Only show debug overlay in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="debug-overlay">
+          <div>Image Path: {floorPlanImage ? floorPlanImage.split('/').pop() : 'None'}</div>
+          <div>Loaded: {imageLoaded ? 'Yes' : 'No'}</div>
+          <div>Size: {imageSize.width}x{imageSize.height}</div>
+          <div>Zoom: {zoomLevel.toFixed(2)}</div>
+          {imageError && <div style={{ color: 'red' }}>{imageError}</div>}
+        </div>
+      )}
+      
+      {/* Floor plan image with pan and zoom */}
+      <div
+        className="floorplan-image"
+        style={{
+          backgroundImage: floorPlanImage ? `url(${floorPlanImage})` : 'none',
         transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
         transformOrigin: '0 0',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <img 
-          src={floorPlanImage} 
-          alt="Floor Plan" 
-          style={{ 
-            display: 'block',
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain',
-            width: 'auto',
-            height: 'auto'
-          }}
-          onLoad={handleImageLoad}
-        />
-      </div>
+        }}
+      >
+        {/* Render grid lines if enabled */}
+        {showGridLines && renderGridLines()}
       
-      {/* Grid lines */}
-      {renderGridLines()}
-      
-      {/* Interactive room elements */}
-      <div style={{
-        position: 'absolute',
-        transform: `translate(${panOffset.x * zoomLevel}px, ${panOffset.y * zoomLevel}px)`,
-        transformOrigin: '0 0'
-      }}>
-        {/* Render regular rooms */}
-        {roomData.map((room) => (
+        {/* Render measurements if active */}
+        {isMeasurementToolActive && renderMeasurements()}
+        
+        {/* Render detected rooms */}
+        {renderDetectedRooms()}
+        
+        {/* Render existing rooms */}
+        {roomData.map(room => (
           <div
             key={room.id}
             data-id={room.id}
-            style={getRoomStyle(room)}
+            data-testid={`room-${room.id}`}
+            className={getRoomClasses(room)}
+            style={{
+              left: `${room.coords.x * zoomLevel}px`,
+              top: `${room.coords.y * zoomLevel}px`,
+              width: `${room.coords.width * zoomLevel}px`,
+              height: `${room.coords.height * zoomLevel}px`,
+              cursor: isEditMode ? 'move' : 'pointer',
+            }}
             onClick={(e) => {
               e.stopPropagation();
               onRoomClick(room.id);
@@ -821,77 +625,65 @@ const FloorPlanVisualization: React.FC<FloorPlanVisualizationProps> = ({
               onRoomDragStart(room.id, e);
             }}
             onContextMenu={(e) => {
+              if (!isEditMode) return;
               e.preventDefault();
+              e.stopPropagation();
               onEditMenuOpen(room.id);
             }}
           >
+            {/* Room label */}
             {showLabels && (
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: `${14 / zoomLevel}px`,
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                  padding: '2px 4px',
-                  borderRadius: '4px',
-                  maxWidth: '90%',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
+              <div className="room-label" style={{ fontSize: `${Math.max(10, 12 * zoomLevel)}px` }}>
                 {room.name}
-              </Typography>
+              </div>
             )}
             
-            {/* Room resize handles */}
+            {/* Render hotspot handles for room editing */}
             {renderRoomHandles(room)}
           </div>
         ))}
       </div>
       
-      {/* Detected rooms overlay */}
-      <div style={{
-        position: 'absolute',
-        transform: `translate(${panOffset.x * zoomLevel}px, ${panOffset.y * zoomLevel}px)`,
-        transformOrigin: '0 0'
-      }}>
-        {renderDetectedRooms()}
-      </div>
-      
-      {/* Measurements */}
-      {renderMeasurements()}
-      
-      {/* Control buttons */}
-      <Paper sx={{ 
+      {/* Show detected rooms controls */}
+      {detectedRooms.length > 0 && (
+        <Box
+          sx={{
         position: 'absolute', 
         bottom: 16, 
-        right: 16, 
-        p: 1,
-        zIndex: 100
-      }}>
-        <ButtonGroup orientation="vertical" variant="outlined" size="small">
-          <Tooltip title="Fit to view">
-            <IconButton onClick={handleFitToView}>
-              <CropFree />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Reset room positions">
-            <span>
-              <IconButton 
-                onClick={handleResetRoomPositions}
-                disabled={detectedRooms.length === 0 && roomData.length === 0}
-              >
-                <RestartAlt />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={isMeasurementToolActive ? "Using measurement tool" : "Pan mode"}>
-            <IconButton color={isMeasurementToolActive ? "primary" : "default"}>
-              {isMeasurementToolActive ? <Straighten /> : <ZoomIn />}
-            </IconButton>
-          </Tooltip>
-        </ButtonGroup>
-      </Paper>
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 3,
+            p: 1
+          }}
+        >
+          <Chip 
+            label={`${detectedRooms.length} rooms detected (${Math.round(detectionConfidence * 100)}% confidence)`}
+            color="primary"
+            sx={{ mr: 2 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Check />}
+            onClick={onApplyDetections}
+          >
+            Apply Detection
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<Close />}
+            onClick={() => null /* TODO: Implement reset */}
+            sx={{ ml: 1 }}
+          >
+            Cancel
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 };

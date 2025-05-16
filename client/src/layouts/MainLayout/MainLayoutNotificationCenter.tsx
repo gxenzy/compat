@@ -1,8 +1,11 @@
 import React from 'react';
-import { NavigateFunction } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import BaseNotificationCenter, { Notification as ComponentNotification } from '../../components/NotificationCenter';
 import { useNotificationContext } from '../../contexts/NotificationContext';
 import { NotificationType } from '../../types';
+
+// Define NavigateFunction type for v5 router
+export type NavigateFunction = (path: string) => void;
 
 // Use the exported name to match what's being imported
 export interface NotificationCenterProps {

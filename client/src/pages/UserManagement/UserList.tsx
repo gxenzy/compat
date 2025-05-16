@@ -49,7 +49,7 @@ import {
 import * as userService from '../../services/userService';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { User, UserRole } from '../../types';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -81,7 +81,7 @@ const validateStudentId = (id: string): boolean => {
 };
 
 const UserList: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
   const { hasRole } = useAuthContext();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -575,7 +575,7 @@ const UserList: React.FC = () => {
 
   // View user activity log
   const handleViewActivity = (userId: string) => {
-    navigate(`/user-management/activity/${userId}`);
+    history.push(`/user-management/activity/${userId}`);
   };
 
   if (!hasRole(UserRole.ADMIN)) {

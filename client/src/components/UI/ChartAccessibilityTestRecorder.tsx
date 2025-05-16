@@ -89,9 +89,9 @@ const getDefaultTestCases = (category: string): { id: string; name: string }[] =
         { id: 'SR2', name: 'Chart type is identified' },
         { id: 'SR3', name: 'Data points are announced with values' },
         { id: 'SR4', name: 'Navigation instructions are provided' },
-        { id: 'SR5', name: 'Arrow keys navigate between data points' },
-        { id: 'SR6', name: 'Home/End keys navigate to first/last points' },
-        { id: 'SR7', name: 'Up/Down arrows navigate between datasets (if applicable)' },
+        { id: 'SR5', name: 'Arrow keys history.push between data points' },
+        { id: 'SR6', name: 'Home/End keys history.push to first/last points' },
+        { id: 'SR7', name: 'Up/Down arrows history.push between datasets (if applicable)' },
         { id: 'SR8', name: 'Chart summary available (Alt+A)' },
       ];
     case 'dataTable':

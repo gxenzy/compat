@@ -45,7 +45,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       // Use debug endpoint that we know works (based on server logs)
       try {
         console.log('Attempting to fetch users via debug endpoint');
-        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
         // Remove any trailing /api to get base URL
         const cleanBaseUrl = baseUrl.endsWith('/api') 
           ? baseUrl.substring(0, baseUrl.length - 4) 

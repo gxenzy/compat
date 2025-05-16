@@ -104,7 +104,6 @@ export interface SystemSettings {
   backupFrequency?: number;
   emailNotifications?: boolean;
   maintenanceMode: boolean;
-  emergencyMode: boolean;
   debugMode?: boolean;
   apiUrl?: string;
   registrationEnabled: boolean;

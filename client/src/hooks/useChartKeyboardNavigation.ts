@@ -128,7 +128,7 @@ export const useChartKeyboardNavigation = (
       description += `. ${configuration.options.plugins.title.text}`;
     }
     description += `. Contains ${datasetCount} dataset${datasetCount !== 1 ? 's' : ''} with ${pointCount} data point${pointCount !== 1 ? 's' : ''} each.`;
-    description += ` Use arrow keys to navigate between data points. Press Enter to view details about a data point.`;
+    description += ` Use arrow keys to history.push between data points. Press Enter to view details about a data point.`;
     
     return description;
   }, [configuration, title]);

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Direct Login Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #333;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #1565c0;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .success {
+      color: green;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>Direct Login Test</h2>
+    <div id="status"></div>
+    <div>
+      <input type="text" id="username" placeholder="Username or Student ID">
+      <input type="password" id="password" placeholder="Password">
+      <button id="loginButton">Login</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginButton = document.getElementById('loginButton');
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      const resultDiv = document.getElementById('result');
+      const statusDiv = document.getElementById('status');
+
+      // Show server status
+      statusDiv.innerHTML = `<div style="color:blue;margin-bottom:10px;">Checking server status...</div>`;
+      
+      // Test server connection
+      fetch('http://localhost:8000/health')
+        .then(response => {
+          if (response.ok) {
+            statusDiv.innerHTML = `<div style="color:green;margin-bottom:10px;">Server is running ✓</div>`;
+          } else {
+            statusDiv.innerHTML = `<div style="color:orange;margin-bottom:10px;">Server is running but returned ${response.status}</div>`;
+          }
+          return response.json();
+        })
+        .catch(error => {
+          statusDiv.innerHTML = `<div style="color:red;margin-bottom:10px;">Server connection failed: ${error.message}</div>`;
+        });
+
+      loginButton.addEventListener('click', function() {
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+        
+        if (!username || !password) {
+          resultDiv.innerHTML = '<div class="error">Please enter both username and password</div>';
+          return;
+        }
+        
+        resultDiv.innerHTML = '<div style="color:blue">Attempting login...</div>';
+        loginButton.disabled = true;
+        
+        // Try all possible login endpoints
+        const loginEndpoints = [
+          'http://localhost:8000/api/auth/login',
+          'http://localhost:8000/auth/login',
+          'http://localhost:8000/login',
+          '/api/auth/login'
+        ];
+        
+        let loginAttempt = 0;
+        tryNextEndpoint();
+        
+        function tryNextEndpoint() {
+          if (loginAttempt >= loginEndpoints.length) {
+            resultDiv.innerHTML = '<div class="error">All login attempts failed. See console for details.</div>';
+            loginButton.disabled = false;
+            return;
+          }
+          
+          const endpoint = loginEndpoints[loginAttempt];
+          console.log(`Trying login endpoint: ${endpoint}`);
+          
+          fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password }),
+            credentials: 'include'
+          })
+          .then(response => {
+            console.log(`Endpoint ${endpoint} responded with status: ${response.status}`);
+            if (!response.ok) {
+              throw new Error(`Server responded with ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Login response:', data);
+            
+            if (data.token) {
+              resultDiv.innerHTML = '<div class="success">Login successful! Token received.</div>';
+              // Store the token and user data
+              localStorage.setItem('token', data.token);
+              if (data.user) {
+                localStorage.setItem('currentUser', JSON.stringify(data.user));
+              }
+              
+              // Redirect to dashboard after successful login
+              setTimeout(() => {
+                window.location.href = '/#/dashboard';
+              }, 1000);
+            } else {
+              throw new Error('No token received from server');
+            }
+          })
+          .catch(error => {
+            console.error(`Login attempt ${loginAttempt + 1} failed:`, error);
+            loginAttempt++;
+            tryNextEndpoint();
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html> 

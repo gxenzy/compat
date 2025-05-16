@@ -47,6 +47,7 @@ import {
   Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { API_BASE_URL, apiClient } from '../../../../utils/apiConfig';
 
 interface CalculationResult {
   id: string;
@@ -95,6 +96,13 @@ interface ComplianceResultDetails {
   }[];
 }
 
+// Define the filter interface
+interface RuleFilters {
+  section: string;
+  severity: string;
+  type: string;
+}
+
 const ComplianceCalculatorIntegration: React.FC = () => {
   const [savedCalculations, setSavedCalculations] = useState<CalculationResult[]>([]);
   const [selectedCalculation, setSelectedCalculation] = useState<CalculationResult | null>(null);
@@ -104,6 +112,13 @@ const ComplianceCalculatorIntegration: React.FC = () => {
   const [complianceResults, setComplianceResults] = useState<ComplianceResultDetails | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedRule, setSelectedRule] = useState<ComplianceRule | null>(null);
+  
+  // Add the filters state
+  const [filters, setFilters] = useState<RuleFilters>({
+    section: '',
+    severity: '',
+    type: ''
+  });
 
   useEffect(() => {
     loadSavedCalculations();
@@ -134,7 +149,7 @@ const ComplianceCalculatorIntegration: React.FC = () => {
       // For now, let's simulate it
       
       // Fetch applicable rules based on calculation type
-      const response = await axios.get('/api/compliance/rules', {
+      const response = await apiClient.get(`/compliance/rules`, {
         params: { 
           calculationType: calculation.type 
         }
@@ -160,7 +175,7 @@ const ComplianceCalculatorIntegration: React.FC = () => {
     // For now, we'll simulate the compliance check logic
     
     try {
-      const response = await axios.post('/api/compliance/verify-calculation', {
+      const response = await apiClient.post(`/compliance/verify-calculation`, {
         calculationId: calculation.id,
         calculationType: calculation.type,
         calculationData: calculation.result
@@ -316,6 +331,36 @@ const ComplianceCalculatorIntegration: React.FC = () => {
         return 'Harmonic Distortion';
       default:
         return type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
+    }
+  };
+
+  const fetchRules = async () => {
+    const params: any = {};
+    
+    if (filters.section) {
+      params.section_id = filters.section;
+    }
+    
+    if (filters.severity) {
+      params.severity = filters.severity;
+    }
+    
+    if (filters.type) {
+      params.type = filters.type;
+    }
+    
+    // Only get active rules
+    params.active = 'true';
+    
+    try {
+      const response = await apiClient.get(`/compliance/rules`, { params });
+      
+      setApplicableRules(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching compliance rules:', error);
+      setError('Failed to load compliance rules');
+      setLoading(false);
     }
   };
 
@@ -643,4 +688,4 @@ const ComplianceCalculatorIntegration: React.FC = () => {
   );
 };
 
-export default ComplianceCalculatorIntegration; 
+export default ComplianceCalculatorIntegration;

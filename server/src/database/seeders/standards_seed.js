@@ -106,38 +106,59 @@ async function seedStandards() {
 
       console.log('Added illumination requirements table');
 
-      // Add compliance requirements
-      await query(
-        `INSERT INTO compliance_requirements (section_id, requirement_type, description, verification_method, severity)
-        VALUES (?, ?, ?, ?, ?)`,
-        [
-          illuminationId,
-          'mandatory',
-          'All educational spaces must meet minimum illumination levels as specified in Table 1075-1.',
-          'Light meter measurement at working plane height (typically 0.8m above floor).',
-          'major'
-        ]
+      // Add compliance requirements - check if exists first
+      const complianceDescription = 'All educational spaces must meet minimum illumination levels as specified in Table 1075-1.';
+      const existingCompliance = await query(
+        `SELECT id FROM compliance_requirements 
+         WHERE section_id = ? AND SUBSTRING(description, 1, 100) = SUBSTRING(?, 1, 100)`,
+        [illuminationId, complianceDescription]
       );
 
-      console.log('Added compliance requirements for illumination section');
+      if (existingCompliance.length === 0) {
+        await query(
+          `INSERT INTO compliance_requirements (section_id, requirement_type, description, verification_method, severity)
+          VALUES (?, ?, ?, ?, ?)`,
+          [
+            illuminationId,
+            'mandatory',
+            complianceDescription,
+            'Light meter measurement at working plane height (typically 0.8m above floor).',
+            'major'
+          ]
+        );
+        console.log('Added compliance requirements for illumination section');
+      } else {
+        console.log('Compliance requirement already exists, skipping insertion');
+      }
 
-      // Add educational resource
-      await query(
-        `INSERT INTO educational_resources (section_id, resource_type, title, description, url, difficulty, duration, tags)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          illuminationId,
-          'guide',
-          'Understanding Illumination Requirements in Educational Facilities',
-          'A comprehensive guide to implementing proper lighting design in educational settings according to PEC 2017 standards.',
-          'https://example.com/illumination-guide',
-          'intermediate',
-          '20 minutes',
-          'lighting,education,standards,energy efficiency'
-        ]
+      // Add educational resource - check if exists first
+      const resourceTitle = 'Understanding Illumination Requirements in Educational Facilities';
+      const resourceUrl = 'https://example.com/illumination-guide';
+      const existingResource = await query(
+        `SELECT id FROM educational_resources 
+         WHERE section_id = ? AND url = ?`,
+        [illuminationId, resourceUrl]
       );
 
-      console.log('Added educational resource for illumination section');
+      if (existingResource.length === 0) {
+        await query(
+          `INSERT INTO educational_resources (section_id, resource_type, title, description, url, difficulty, duration, tags)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            illuminationId,
+            'guide',
+            resourceTitle,
+            'A comprehensive guide to implementing proper lighting design in educational settings according to PEC 2017 standards.',
+            resourceUrl,
+            'intermediate',
+            '20 minutes',
+            'lighting,education,standards,energy efficiency'
+          ]
+        );
+        console.log('Added educational resource for illumination section');
+      } else {
+        console.log('Educational resource already exists, skipping insertion');
+      }
     }
 
     console.log('Standards seed completed successfully');

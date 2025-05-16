@@ -28,7 +28,7 @@ import {
   ArrowBack as BackIcon,
   Share as ShareIcon
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { Report } from '../../types/reports';
 
 interface UserShare {
@@ -45,7 +45,7 @@ interface UserShare {
  */
 const ReportShare: React.FC = () => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const history = useHistory();
   const { id } = useParams<{ id: string }>();
   
   const [report, setReport] = useState<Report | null>(null);
@@ -197,7 +197,7 @@ const ReportShare: React.FC = () => {
   };
   
   const handleBackToReport = () => {
-    navigate(`/reports/view/${id}`);
+    history.push(`/reports/view/${id}`);
   };
   
   if (loading) {

@@ -1,4 +1,27 @@
 import axios from 'axios';
+import { apiConfig } from '../config/database';
+import api from './api';
+
+// API URL for fallback
+const BACKEND_URL = 'http://localhost:8000/api';
+
+// Track API failures to prevent repeated requests to failing endpoints
+const failedEndpoints = new Set<string>();
+const FAILURE_TIMEOUT = 60000; // 1 minute timeout before retrying failed endpoints
+
+// Helper functions
+const isEndpointFailing = (endpoint: string): boolean => {
+  return failedEndpoints.has(endpoint);
+};
+
+const markEndpointAsFailing = (endpoint: string): void => {
+  failedEndpoints.add(endpoint);
+  
+  // Automatically remove from failed list after timeout
+  setTimeout(() => {
+    failedEndpoints.delete(endpoint);
+  }, FAILURE_TIMEOUT);
+};
 
 interface IlluminationRequirement {
   roomType: string;
@@ -104,15 +127,191 @@ interface Tag {
  * Service for interacting with the Standards Reference System
  */
 class StandardsService {
+  // Storage for cache in memory
+  private standardsCache: Standard[] | null = null;
+  private sectionsCache: { [key: string]: Section[] } = {};
+  private lastSuccessfulEndpoints: { [key: string]: string } = {};
+  private apiFailureCount: number = 0;
+  private maxFailureCount: number = 5; // Maximum number of failures before temporary disabling
+  private apiDisabled: boolean = false;
+  private apiDisabledTimeout: ReturnType<typeof setTimeout> | null = null;
+  
+  /**
+   * Create empty initial cache for standards
+   */
+  constructor() {
+    // Create empty caches
+    this.standardsCache = null;
+    this.sectionsCache = {};
+    this.lastSuccessfulEndpoints = {};
+  }
+  
+  /**
+   * Check if API service is temporarily disabled due to repeated failures
+   */
+  private isApiDisabled(): boolean {
+    return this.apiDisabled;
+  }
+  
+  /**
+   * Temporarily disable API for a period to prevent console spam
+   */
+  private disableApi(): void {
+    if (this.apiDisabled) return;
+    
+    console.warn('Standards API temporarily disabled due to repeated failures');
+    this.apiDisabled = true;
+    
+    // Clear any existing timeout
+    if (this.apiDisabledTimeout) {
+      clearTimeout(this.apiDisabledTimeout);
+    }
+    
+    // Re-enable after 2 minutes
+    this.apiDisabledTimeout = setTimeout(() => {
+      console.log('Re-enabling Standards API requests');
+      this.apiDisabled = false;
+      this.apiFailureCount = 0;
+    }, 120000); // 2 minutes
+  }
+  
+  /**
+   * Register an API failure
+   */
+  private registerFailure(): void {
+    this.apiFailureCount++;
+    
+    if (this.apiFailureCount >= this.maxFailureCount) {
+      this.disableApi();
+    }
+  }
+  
+  /**
+   * Reset failure count on success
+   */
+  private registerSuccess(): void {
+    this.apiFailureCount = 0;
+  }
+  
+  /**
+   * Attempt to fetch data from multiple endpoints to handle different server configurations
+   */
+  private async tryMultipleEndpoints(
+    endpointPaths: string[], 
+    transformer: (data: any) => any = (d) => d,
+    cacheKey?: string
+  ): Promise<any> {
+    // If API is disabled, return empty result immediately
+    if (this.isApiDisabled()) {
+      console.log('Standards API disabled, returning empty result');
+      return transformer([]); 
+    }
+    
+    // Filter out endpoints that are known to be failing
+    const availableEndpoints = endpointPaths.filter(ep => !isEndpointFailing(ep));
+    
+    if (availableEndpoints.length === 0) {
+      console.log('All endpoints are currently marked as failing, returning empty result');
+      return transformer([]);
+    }
+    
+    // First try using authenticated API instance for better auth handling
+    try {
+      // Convert the first endpoint to a relative path for the API instance
+      const relativePath = availableEndpoints[0].replace(BACKEND_URL, '');
+      console.log(`Trying authenticated API with path: ${relativePath}`);
+      
+      const response = await api.get(relativePath);
+      this.registerSuccess();
+      return transformer(response.data);
+    } catch (error) {
+      console.warn(`Authenticated API request failed, falling back to direct endpoints`, error);
+      // Continue with direct endpoints as fallback
+    }
+    
+    // If we have a previously successful endpoint for this request type, try it first
+    if (cacheKey && this.lastSuccessfulEndpoints[cacheKey]) {
+      try {
+        const cachedEndpoint = this.lastSuccessfulEndpoints[cacheKey];
+        
+        // Skip if this endpoint is marked as failing
+        if (isEndpointFailing(cachedEndpoint)) {
+          throw new Error('Cached endpoint is currently failing');
+        }
+        
+        console.log(`Using cached successful endpoint: ${cachedEndpoint}`);
+        
+        const response = await axios.get(cachedEndpoint, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 3000 // Short timeout to quickly fallback if the endpoint is still failing
+        });
+        
+        this.registerSuccess();
+        return transformer(response.data);
+      } catch (error) {
+        console.warn(`Cached endpoint failed, trying alternatives`);
+        // Continue with regular endpoints
+      }
+    }
+    
+    // Try each endpoint in sequence
+    for (let i = 0; i < availableEndpoints.length; i++) {
+      try {
+        const path = availableEndpoints[i];
+        console.log(`Trying direct endpoint: ${path}`);
+        
+        const response = await axios.get(path, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // Add a reasonable timeout
+        });
+        
+        // Store successful endpoint for future use
+        if (cacheKey) {
+          this.lastSuccessfulEndpoints[cacheKey] = path;
+        }
+        
+        this.registerSuccess();
+        return transformer(response.data);
+      } catch (error) {
+        // Mark this endpoint as failing to avoid retrying it too soon
+        markEndpointAsFailing(availableEndpoints[i]);
+        
+        console.warn(`Endpoint ${availableEndpoints[i]} failed:`, error);
+        this.registerFailure();
+        
+        // If this is the last endpoint, throw the error
+        if (i === availableEndpoints.length - 1) {
+          throw error;
+        }
+        // Otherwise continue to the next endpoint
+      }
+    }
+    
+    // Should never reach here due to the throw in the loop, but TypeScript requires a return
+    return transformer([]);
+  }
+
   /**
    * Get all available standards
    */
   async getStandards(): Promise<Standard[]> {
     try {
-      // Try to fetch from API first
-      try {
-        const response = await axios.get('/api/standards-api/standards');
-        return response.data.map((item: any) => ({
+      // Return cached data if available
+      if (this.standardsCache) {
+        return this.standardsCache;
+      }
+      
+      // Use direct API endpoint with direct URL to backend
+      const endpoints = [`${BACKEND_URL}/standards`];
+      
+      const transformer = (data: any) => {
+        return Array.isArray(data) ? data.map((item: any) => ({
           id: item._id || item.id,
           code_name: item.code_name,
           full_name: item.full_name,
@@ -121,40 +320,20 @@ class StandardsService {
           description: item.description,
           publication_date: item.publication_date,
           effective_date: item.effective_date
-        }));
-      } catch (apiError) {
-        console.warn('API fetch failed, using mock data:', apiError);
-        // Return mock data as fallback
-        return [
-          {
-            id: "1",
-            code_name: "PEC-2017",
-            full_name: "Philippine Electrical Code",
-            version: "2017",
-            issuing_body: "IIEE",
-            description: "The Philippine Electrical Code"
-          },
-          {
-            id: "2",
-            code_name: "PEEP",
-            full_name: "Philippine Energy Efficiency Project",
-            version: "2020",
-            issuing_body: "DOE",
-            description: "Energy efficiency standards for buildings"
-          },
-          {
-            id: "3",
-            code_name: "NFPA-70",
-            full_name: "National Electrical Code",
-            version: "2020",
-            issuing_body: "NFPA",
-            description: "National Fire Protection Association electrical standards"
-          }
-        ];
-      }
+        })) : [];
+      };
+      
+      // Try multiple endpoints and transform the result, using 'standards' as cache key
+      const standards = await this.tryMultipleEndpoints(endpoints, transformer, 'standards');
+      
+      // Cache the result
+      this.standardsCache = standards;
+      
+      return standards;
     } catch (error) {
       console.error('Error fetching standards:', error);
-      throw error;
+      // Return an empty array - no mock data
+      return [];
     }
   }
 
@@ -163,9 +342,18 @@ class StandardsService {
    */
   async getStandardById(id: string): Promise<Standard> {
     try {
-      const response = await axios.get(`/api/standards-api/standards/${id}`);
-      const data = response.data;
-      return {
+      // Check cache first
+      if (this.standardsCache) {
+        const cachedStandard = this.standardsCache.find(s => s.id === id);
+        if (cachedStandard) {
+          return cachedStandard;
+        }
+      }
+      
+      // Use direct connection to backend
+      const endpoints = [`${BACKEND_URL}/standards/${id}`];
+      
+      const transformer = (data: any) => ({
         id: data._id || data.id,
         code_name: data.code_name,
         full_name: data.full_name,
@@ -174,10 +362,13 @@ class StandardsService {
         description: data.description,
         publication_date: data.publication_date,
         effective_date: data.effective_date
-      };
+      });
+      
+      return await this.tryMultipleEndpoints(endpoints, transformer);
     } catch (error) {
       console.error('Error fetching standard:', error);
-      throw error;
+      // Throw a descriptive error
+      throw new Error(`Standard with ID ${id} not found. The API endpoint may be unavailable.`);
     }
   }
 
@@ -186,11 +377,18 @@ class StandardsService {
    */
   async getSections(standardId: string, parentId?: string): Promise<Section[]> {
     try {
-      // Try to fetch from API first
-      try {
-        const url = `/api/standards-api/standards/${standardId}/sections${parentId ? `?parentId=${parentId}` : ''}`;
-        const response = await axios.get(url);
-        return response.data.map((item: any) => ({
+      // Check cache first
+      const cacheKey = `${standardId}-${parentId || 'root'}`;
+      if (this.sectionsCache[cacheKey]) {
+        return this.sectionsCache[cacheKey];
+      }
+      
+      // Use query param for parentId
+      const queryParam = parentId ? `?parentId=${parentId}` : '';
+      const endpoints = [`${BACKEND_URL}/standards/${standardId}/sections${queryParam}`];
+      
+      const transformer = (data: any) => {
+        return Array.isArray(data) ? data.map((item: any) => ({
           id: item._id || item.id,
           standard_id: item.standard_id,
           section_number: item.section_number,
@@ -199,93 +397,22 @@ class StandardsService {
           parent_section_id: item.parent_section_id,
           has_tables: item.has_tables || false,
           has_figures: item.has_figures || false
-        }));
-      } catch (apiError) {
-        console.warn('API fetch failed, using mock data:', apiError);
-        // Return mock data as fallback
-        let mockSections: Section[] = [];
-        
-        if (standardId === "1") { // PEC
-          mockSections = [
-            {
-              id: "101",
-              standard_id: "1",
-              section_number: "1.0",
-              title: "General Requirements",
-              content: "This section covers general requirements for electrical installations.",
-              parent_section_id: null,
-              has_tables: false,
-              has_figures: false
-            },
-            {
-              id: "102",
-              standard_id: "1",
-              section_number: "2.0",
-              title: "Wiring and Protection",
-              content: "Requirements for electrical wiring and protection methods.",
-              parent_section_id: null,
-              has_tables: true,
-              has_figures: true
-            }
-          ];
-        } else if (standardId === "2") { // PEEP
-          mockSections = [
-            {
-              id: "201",
-              standard_id: "2",
-              section_number: "1.0",
-              title: "Energy Efficiency in Buildings",
-              content: "Standards for energy efficiency in buildings.",
-              parent_section_id: null,
-              has_tables: false,
-              has_figures: false
-            },
-            {
-              id: "202",
-              standard_id: "2",
-              section_number: "2.0",
-              title: "Lighting Systems",
-              content: "Energy efficient lighting system requirements.",
-              parent_section_id: null,
-              has_tables: true,
-              has_figures: false
-            }
-          ];
-        } else {
-          mockSections = [
-            {
-              id: "301",
-              standard_id: standardId,
-              section_number: "1.0",
-              title: "Introduction",
-              content: "Introduction to the standard.",
-              parent_section_id: null,
-              has_tables: false,
-              has_figures: false
-            },
-            {
-              id: "302",
-              standard_id: standardId,
-              section_number: "2.0",
-              title: "Requirements",
-              content: "General requirements of the standard.",
-              parent_section_id: null,
-              has_tables: true,
-              has_figures: true
-            }
-          ];
-        }
-        
-        // Filter by parent ID if provided
-        if (parentId) {
-          mockSections = mockSections.filter(s => s.parent_section_id === parentId);
-        }
-        
-        return mockSections;
-      }
+        })) : [];
+      };
+      
+      // Use endpoint cache key based on the standard ID
+      const endpointCacheKey = `sections-${standardId}`;
+      const sections = await this.tryMultipleEndpoints(endpoints, transformer, endpointCacheKey);
+      
+      // Cache the result
+      this.sectionsCache[cacheKey] = sections;
+      
+      return sections;
     } catch (error) {
       console.error('Error fetching sections:', error);
-      throw error;
+      // Return empty array
+      console.warn('No section data available - returning empty array');
+      return [];
     }
   }
 
@@ -294,11 +421,10 @@ class StandardsService {
    */
   async getSectionById(id: string): Promise<Section> {
     try {
-      // Try to fetch from API first
-      try {
-        const response = await axios.get(`/api/standards-api/sections/${id}`);
-        const data = response.data;
-        return {
+      // Simple endpoint using proxy
+      const endpoints = [`/api/standards/sections/${id}`];
+      
+      const transformer = (data: any) => ({
           id: data._id || data.id,
           standard_id: data.standard_id,
           section_number: data.section_number,
@@ -311,91 +437,24 @@ class StandardsService {
           figures: data.figures || [],
           compliance_requirements: data.compliance_requirements || [],
           educational_resources: data.educational_resources || []
-        };
-      } catch (apiError) {
-        console.warn('API fetch failed, using mock data:', apiError);
-        // Return mock data as fallback
-        // Basic template for mock section
-        const mockSection: Section = {
-          id: id,
-          standard_id: "",
-          section_number: "",
-          title: "",
-          content: "",
-          parent_section_id: null,
-          has_tables: false,
-          has_figures: false,
-          tables: [],
-          figures: [],
-          compliance_requirements: [],
-          educational_resources: []
-        };
-        
-        // Fill with specific content based on ID
-        if (id === "101") {
-          mockSection.standard_id = "1";
-          mockSection.section_number = "1.0";
-          mockSection.title = "General Requirements";
-          mockSection.content = "This section covers general requirements for electrical installations. It includes specifications for materials, wiring methods, and safety procedures.";
-        } else if (id === "102") {
-          mockSection.standard_id = "1";
-          mockSection.section_number = "2.0";
-          mockSection.title = "Wiring and Protection";
-          mockSection.content = "Requirements for electrical wiring and protection methods. This includes circuit protection, grounding requirements, and wire sizing guidelines.";
-          mockSection.has_tables = true;
-          mockSection.tables = [
-            {
-              id: "t1",
-              table_number: "2.1",
-              title: "Conductor Sizing Chart",
-              content: {
-                headers: ["AWG Size", "Current Rating (A)", "Maximum Length (m)"],
-                rows: [
-                  ["14", "15", "30"],
-                  ["12", "20", "45"],
-                  ["10", "30", "75"]
-                ]
-              }
-            }
-          ];
-        } else if (id === "201") {
-          mockSection.standard_id = "2";
-          mockSection.section_number = "1.0";
-          mockSection.title = "Energy Efficiency in Buildings";
-          mockSection.content = "Standards for energy efficiency in buildings. This section provides guidelines for energy conservation in new and existing structures.";
-        } else if (id === "202") {
-          mockSection.standard_id = "2";
-          mockSection.section_number = "2.0";
-          mockSection.title = "Lighting Systems";
-          mockSection.content = "Energy efficient lighting system requirements. This includes specifications for lumens per watt, color temperature, and control systems.";
-          mockSection.has_tables = true;
-          mockSection.tables = [
-            {
-              id: "t2",
-              table_number: "2.1",
-              title: "Minimum Lighting Efficiency Requirements",
-              content: {
-                headers: ["Application", "Minimum Efficacy (lm/W)", "Maximum Power Density (W/m²)"],
-                rows: [
-                  ["Office", "90", "10"],
-                  ["Retail", "80", "16"],
-                  ["Educational", "95", "8"]
-                ]
-              }
-            }
-          ];
-        } else {
-          mockSection.standard_id = "3";
-          mockSection.section_number = "1.0";
-          mockSection.title = "Generic Section";
-          mockSection.content = "This is a generic standard section with placeholder content.";
-        }
-        
-        return mockSection;
-      }
+      });
+      
+      // Use cacheKey based on the section ID
+      const cacheKey = `section-${id}`;
+      return await this.tryMultipleEndpoints(endpoints, transformer, cacheKey);
     } catch (error) {
       console.error('Error fetching section:', error);
-      throw error;
+      // Return a minimal empty section
+      return {
+        id: id,
+        standard_id: "",
+        section_number: "",
+        title: "Section not available",
+        content: "The section could not be loaded. Please try again later.",
+        parent_section_id: null,
+        has_tables: false,
+        has_figures: false
+      };
     }
   }
 
@@ -404,15 +463,21 @@ class StandardsService {
    */
   async getSectionTags(sectionId: string): Promise<Tag[]> {
     try {
-      const response = await axios.get(`/api/standards-api/sections/${sectionId}/tags`);
-      return response.data.map((tag: any) => ({
+      // Try different possible API endpoints
+      const endpoints = [
+        `/api/standards/sections/${sectionId}/tags`,
+      ];
+      
+      const transformer = (data: any) => Array.isArray(data) ? data.map((tag: any) => ({
         id: tag._id || tag.id,
         name: tag.name,
         created_at: tag.created_at
-      }));
+      })) : [];
+      
+      return await this.tryMultipleEndpoints(endpoints, transformer);
     } catch (error) {
       console.error('Error fetching section tags:', error);
-      throw error;
+      return []; // Return empty array if no tags available
     }
   }
 
@@ -421,15 +486,21 @@ class StandardsService {
    */
   async getAllTags(): Promise<Tag[]> {
     try {
-      const response = await axios.get('/api/standards-api/tags');
-      return response.data.map((tag: any) => ({
+      // Try different possible API endpoints
+      const endpoints = [
+        `/api/standards/tags`,
+      ];
+      
+      const transformer = (data: any) => Array.isArray(data) ? data.map((tag: any) => ({
         id: tag._id || tag.id,
         name: tag.name,
         created_at: tag.created_at
-      }));
+      })) : [];
+      
+      return await this.tryMultipleEndpoints(endpoints, transformer);
     } catch (error) {
       console.error('Error fetching tags:', error);
-      throw error;
+      return []; // Return empty array if no tags available
     }
   }
 
@@ -465,8 +536,6 @@ class StandardsService {
    * Search for sections matching a query
    */
   async searchSections(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
-    try {
-      // Try to fetch from API first
       try {
         const queryParams = new URLSearchParams({
           q: query,
@@ -481,37 +550,27 @@ class StandardsService {
           ...options.tags && options.tags.length > 0 && { tags: options.tags.join(',') }
         });
 
-        const response = await axios.get(`/api/standards-api/search/sections?${queryParams}`);
-        return response.data;
-      } catch (apiError) {
-        console.warn('API fetch failed, using mock data:', apiError);
-        // Return mock data as fallback
-        return [
-          {
-            id: "101",
-            standard_id: "1",
-            section_number: "1.3",
-            title: "General Requirements",
-            content: `This section contains requirements related to: ${query}`,
-            code_name: "PEC-2017",
-            full_name: "Philippine Electrical Code",
-            relevance: 0.85
-          },
-          {
-            id: "202",
-            standard_id: "2",
-            section_number: "2.1",
-            title: "Lighting Systems",
-            content: `Energy efficient lighting requirements including: ${query}`,
-            code_name: "PEEP",
-            full_name: "Philippine Energy Efficiency Project",
-            relevance: 0.72
-          }
-        ];
-      }
+      // Try different possible API endpoints
+      const endpoints = [
+        `/api/standards/search/sections?${queryParams}`,
+      ];
+      
+      const transformer = (data: any) => Array.isArray(data) ? data : [];
+      
+      // Create a unique cache key based on the query and important options
+      const cacheKeyParts = [
+        'search',
+        query,
+        options.standardId || 'all',
+        options.sort || 'default',
+        options.tags?.join(',') || 'no-tags'
+      ];
+      const cacheKey = cacheKeyParts.join('-');
+      
+      return await this.tryMultipleEndpoints(endpoints, transformer, cacheKey);
     } catch (error) {
       console.error('Error searching sections:', error);
-      throw error;
+      return []; // Return empty results instead of mock data
     }
   }
 

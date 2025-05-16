@@ -1,0 +1,119 @@
+# Philippine Electrical Code (PEC) 2017 - Comprehensive Standards Reference
+
+## 1. Lightning Protection Standards (PEC-2017-2.90)
+
+### 1.1 Building Classification
+- PEC-2017-2.90.3.1: Building Classification - Class I (less than 23m in height) and Class II (more than 23m in height)
+- PEC-2017-2.90.3.1(A): Roof types and pitch requirements for lightning protection systems
+- PEC-2017-2.90.3.2: Materials requirements for lightning protection systems
+- PEC-2017-2.90.3.3: Configuration requirements for lightning protection system components
+- PEC-2017-2.90.3.4: Material Class I requirements (Table 2.90.3.4)
+- PEC-2017-2.90.3.5: Material Class II requirements (Table 2.90.3.5)
+- PEC-2017-2.90.3.6: Prevention of deterioration requirements for lightning protection systems
+- PEC-2017-2.90.3.7: Protection against mechanical injury for lightning protection components
+- PEC-2017-2.90.3.8: Use of aluminum in lightning protection systems
+
+### 1.2 Air Terminals
+- PEC-2017-2.90.3.9: Air terminal requirements for lightning protection
+- PEC-2017-2.90.3.10: Air terminal design and support requirements
+- PEC-2017-2.90.3.10(A): Height requirements for air terminals (254mm above protected object for 6000mm max intervals, 600mm above for 7600mm max intervals)
+- PEC-2017-2.90.3.10(B): Support requirements for air terminals
+- PEC-2017-2.90.3.10(C): Ornament requirements for free-standing unbraced air terminals
+- PEC-2017-2.90.3.11: Requirements for terminals on roofs
+- PEC-2017-2.90.3.11(A): Requirements for flat or gently sloping roofs
+- PEC-2017-2.90.3.11(B): Requirements for lower roofs
+- PEC-2017-2.90.3.11(C): Requirements for dormers
+- PEC-2017-2.90.3.11(D): Requirements for roofs with intermediate ridges
+- PEC-2017-2.90.3.11(E): Requirements for irregular roof lines
+- PEC-2017-2.90.3.11(F): Requirements for open areas in flat roofs
+- PEC-2017-2.90.3.11(G): Requirements for domed or curved structures
+- PEC-2017-2.90.3.11(H): Requirements for chimneys
+
+### 1.3 Conductors
+- PEC-2017-2.90.3.12: Requirements for conductors in lightning protection systems
+- PEC-2017-2.90.3.13: Metal contact requirements
+- PEC-2017-2.90.3.14: Requirements for preventing pockets in conductor routing
+
+## 2. Electrical Safety and Grounding Standards
+
+### 2.1 Grounding and Bonding
+- PEC-2017-2.50.5: Grounding and bonding requirements for electrical installations
+- PEC-2017-6.20.9.5: Ground-fault circuit-interrupter protection requirements for personnel
+
+### 2.2 Disconnection and Protection
+- PEC-2017-6.20.1.5: Disconnecting means requirements for electrical equipment
+- PEC-2017-6.20.6.1: Single means for disconnecting ungrounded main power supply conductors
+- PEC-2017-6.20.10.1: Requirements for elevator systems with emergency power
+
+## 3. Power Distribution Standards
+
+### 3.1 Conductor and Circuit Requirements
+- PEC-2017-6.20.2.3: Feeder and branch circuit conductors requirements for office buildings
+- PEC-2017-6.20.2.4: Feeder demand factor for commercial buildings
+- PEC-2017-4.30.2.2: Motor circuit conductor sizing for industrial applications
+
+### 3.2 Conductor Ampacity
+- PEC-2017-3.10.2.51-67: Ampacities of insulated single copper conductor cables
+- PEC-2017-3.10.2.51-68: Ampacities of insulated single aluminum conductor cables
+- PEC-2017-3.10.2.51-69: Ampacities of insulated single copper conductor isolated in air
+- PEC-2017-3.10.2.51-70: Ampacities of insulated single aluminum conductor isolated in air
+
+## 4. Special Applications
+
+### 4.1 Elevator and Escalator Requirements
+- PEC-2017-6.20.3.1: Elevator wiring method requirements
+- PEC-2017-6.20.3.1B: Escalator wiring method requirements
+- PEC-2017-6.20.3.1C: Platform lift wiring method requirements
+- PEC-2017-6.20.3.2: Branch circuits for elevator car lighting, receptacle(s), ventilation, heating, and air-conditioning
+- PEC-2017-6.20.3.3: Branch circuits for machine room or control room lighting and receptacle(s)
+- PEC-2017-6.20.3.4: Branch circuit for hoistway pit lighting and receptacles
+- PEC-2017-6.20.3.5: Branch circuits for other utilization equipment
+
+### 4.2 Electric Vehicle Charging Systems
+- PEC-2017-6.25.1.1: Electric vehicle charging system scope
+- PEC-2017-6.25.1.2: Electric vehicle charging system definitions
+
+## 5. Illumination Standards
+
+### 5.1 Building Type Illumination Requirements
+- PEC-2017-1075.1: Office illumination requirement - 300 to 500 lux
+- PEC-2017-1075.2: Residential illumination requirement - 150 to 300 lux
+- PEC-2017-1075.3: Commercial areas illumination requirement - 300 to 750 lux
+- PEC-2017-1075.4: Industrial work areas illumination requirement - 300 to 1000 lux
+- PEC-2017-1075.5: Hospital/healthcare illumination requirement - 300 to 1000 lux
+- PEC-2017-1075.6: Educational facilities illumination requirement - 300 to 500 lux
+- PEC-2017-1075.7: Laboratory spaces illumination requirement - 500 to 750 lux
+
+### 5.2 Lighting Power Density
+- PEC-2017-LPD.1: Office maximum lighting power density - 10.5 W/m²
+- PEC-2017-LPD.2: Classroom maximum lighting power density - 10.5 W/m²
+- PEC-2017-LPD.3: Hospital maximum lighting power density - 11.2 W/m²
+- PEC-2017-LPD.4: Retail maximum lighting power density - 14.5 W/m²
+- PEC-2017-LPD.5: Industrial maximum lighting power density - 12.8 W/m²
+- PEC-2017-LPD.6: Residential maximum lighting power density - 8.0 W/m²
+- PEC-2017-LPD.7: Warehouse maximum lighting power density - 8.0 W/m²
+- PEC-2017-LPD.8: Restaurant maximum lighting power density - 12.0 W/m²
+- PEC-2017-LPD.9: Hotel maximum lighting power density - 10.0 W/m²
+- PEC-2017-LPD.10: Laboratory maximum lighting power density - 14.0 W/m²
+
+## 6. Safety Standards
+
+### 6.1 Industrial Safety
+- PEC-2017-1100.1: Industrial safety standard - General requirements
+
+### 6.2 Project Type Safety Requirements
+- PEC-2017-S1: Retrofit safety requirements
+- PEC-2017-S2: Emergency lighting and exit signage requirements
+
+## 7. Wiring Methods and Materials
+
+### 7.1 General Wiring Requirements
+- PEC-2017-1.3.1: All wiring methods and materials shall comply with specified requirements
+- PEC-2017-1.3.2: Conductor sizes and ratings for various applications
+
+## 8. Energy Efficiency Standards
+
+### 8.1 Project Type Efficiency Requirements
+- PEEP-2020-E1: Energy efficiency requirement for renovations - 85% minimum
+- PEEP-2020-E2: New construction efficiency requirement - 90% minimum
+- PEEP-2020-LT1: Lighting efficiency standards for general lighting - 80 lm/W minimum 

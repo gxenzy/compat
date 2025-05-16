@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import {
   Box,
@@ -266,7 +266,7 @@ const auditPhases = [
 const AuditWorkflow: React.FC = () => {
   // Existing state variables
   const theme = useTheme();
-  const navigate = useNavigate();
+  const history = useHistory();
   const [currentTab, setCurrentTab] = useState(0);
   const [tasks, setTasks] = useState<AuditTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -841,7 +841,7 @@ const AuditWorkflow: React.FC = () => {
     if (taskTitle.toLowerCase().includes('lighting') || 
         taskTitle.toLowerCase().includes('lpd') || 
         taskTitle.toLowerCase().includes('light')) {
-      // For lighting-related tasks, navigate to the LPD calculator
+      // For lighting-related tasks, history.push to the LPD calculator
       calculatorType = 'Lighting Power Density Calculator';
       calculatorIndex = 10;
     } else if (taskTitle.toLowerCase().includes('hvac') || 
@@ -889,7 +889,7 @@ const AuditWorkflow: React.FC = () => {
     showNotification(`Launching ${calculatorType}...`, 'info');
     
     // Navigate to the appropriate calculator
-    navigate(`/energy-audit/calculators?tab=${calculatorIndex}`);
+    history.push(`/energy-audit/calculators?tab=${calculatorIndex}`);
   };
 
   // Handle drag end event

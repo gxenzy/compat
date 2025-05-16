@@ -1,0 +1,56 @@
+# Philippine Electrical Code (PEC) 2017 - Standards Reference
+
+## 1. Illumination Standards (PEC-2017-1075)
+
+### 1.1 Building Type Illumination Requirements
+- PEC-2017-1075.1: Office illumination requirement - 300 to 500 lux
+- PEC-2017-1075.2: Residential illumination requirement - 150 to 300 lux
+- PEC-2017-1075.3: Commercial areas - 300 to 750 lux
+- PEC-2017-1075.4: Industrial work areas - 300 to 1000 lux
+- PEC-2017-1075.5: Hospital/healthcare - 300 to 1000 lux depending on area
+- PEC-2017-1075.6: Educational facilities - 300 to 500 lux
+- PEC-2017-1075.7: Laboratory spaces - 500 to 750 lux
+
+## 2. Lightning Protection Standards (PEC-2017-2.90)
+
+### 2.1 Building Classification
+- PEC-2017-2.90.3.1: Building Classification - Class I (less than 23m in height) and Class II (more than 23m in height)
+
+### 2.2 Lightning Protection Components
+- PEC-2017-2.90.3.4: Class I Materials - Minimum requirements for air terminals, conductors
+- PEC-2017-2.90.3.5: Class II Materials - Minimum requirements for taller structures
+- PEC-2017-2.90.3.9: Air Terminals - Requirements for placement
+- PEC-2017-2.90.3.11: Terminals on Roofs - Placement at intervals not exceeding 6000mm
+
+## 3. Safety Standards (PEC-2017-1100)
+
+- PEC-2017-1100.1: Industrial safety standard - General requirements
+
+## 4. Wiring Methods and Materials (PEC-2017-1.3.1)
+
+- PEC-2017-1.3.1: All wiring methods and materials shall comply with specified requirements
+- PEC-2017-1.3.2: Conductor sizes and ratings for various applications
+
+## 5. Energy Efficiency Requirements (PEEP-2020)
+
+- PEEP-2020-E1: Energy efficiency requirement for renovations - Minimum 85% efficiency
+- PEEP-2020-E2: New construction efficiency requirement - Minimum 90% efficiency
+- PEEP-2020-LT1: Lighting Efficiency Standards - Minimum 80 lm/W for all general lighting
+
+## 6. Electrical System Safety (PEC-2017-S1)
+
+- PEC-2017-S1: Retrofit safety requirements
+- PEC-2017-S2: Emergency lighting and exit signage
+
+## 7. Lighting Power Density Standards
+
+- PEC-2017-LPD.1: Office - Maximum LPD 10.5 W/m²
+- PEC-2017-LPD.2: Classroom - Maximum LPD 10.5 W/m²
+- PEC-2017-LPD.3: Hospital - Maximum LPD 11.2 W/m²
+- PEC-2017-LPD.4: Retail - Maximum LPD 14.5 W/m²
+- PEC-2017-LPD.5: Industrial - Maximum LPD 12.8 W/m²
+- PEC-2017-LPD.6: Residential - Maximum LPD 8.0 W/m²
+- PEC-2017-LPD.7: Warehouse - Maximum LPD 8.0 W/m²
+- PEC-2017-LPD.8: Restaurant - Maximum LPD 12.0 W/m²
+- PEC-2017-LPD.9: Hotel - Maximum LPD 10.0 W/m²
+- PEC-2017-LPD.10: Laboratory - Maximum LPD 14.0 W/m² 

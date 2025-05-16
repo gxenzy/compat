@@ -1,6 +1,16 @@
 import axios from 'axios';
+import { apiConfig } from '../config/database';
+import api from './api';
+import { snakeToCamel, camelToSnake, normalizeDataFormat } from '../utils/dataFormatters';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+// API URL for fallback
+const API_URL = 'http://localhost:8000/api';
+
+// API URL for direct calls
+const DIRECT_API_URL = 'http://localhost:8000';
+
+console.log(`Compliance service using API instance with auth`);
+console.log(`Compliance service using direct endpoints for CREATE operations`);
 
 /**
  * Service for interacting with compliance verification endpoints
@@ -23,6 +33,11 @@ const complianceService = {
         calculationId,
         buildingType,
         projectType
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
       return response.data;
     } catch (error) {
@@ -70,10 +85,15 @@ const complianceService = {
    */
   getAllBuildingTypeStandards: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/building-standards/all`);
-      return response.data;
+      // Use the authenticated API instance
+      const response = await api.get('/compliance/building-standards/all');
+      console.log('Raw building standards data:', response.data);
+      
+      // Transform data using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting building standards:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
@@ -84,9 +104,23 @@ const complianceService = {
    */
   createBuildingTypeStandard: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/building-standards`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      console.log('Sending transformed data to backend:', transformedData);
+      
+      // Direct POST to the non-API prefixed URL
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/building-standards`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Building standard created successfully, received:', response.data);
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
+      console.error('Error creating building standard:', error);
       throw error.response?.data || error;
     }
   },
@@ -99,8 +133,13 @@ const complianceService = {
    */
   updateBuildingTypeStandard: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/building-standards/${id}`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      const response = await axios.put(`${API_URL}/compliance/building-standards/${id}`, transformedData);
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -144,10 +183,15 @@ const complianceService = {
    */
   getAllProjectTypeStandards: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/project-standards/all`);
-      return response.data;
+      // Use the authenticated API instance
+      const response = await api.get('/compliance/project-standards/all');
+      console.log('Raw project standards data:', response.data);
+      
+      // Transform data using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting project standards:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
@@ -158,8 +202,17 @@ const complianceService = {
    */
   createProjectTypeStandard: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/project-standards`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/project-standards`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -173,8 +226,13 @@ const complianceService = {
    */
   updateProjectTypeStandard: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/project-standards/${id}`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      const response = await axios.put(`${API_URL}/compliance/project-standards/${id}`, transformedData);
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -222,22 +280,35 @@ const complianceService = {
    */
   getAllComplianceRecommendations: async () => {
     try {
-      const response = await axios.get(`${API_URL}/compliance/recommendations/all`);
-      return response.data;
+      const response = await api.get('/compliance/recommendations/all');
+      console.log('Raw recommendations data:', response.data);
+      
+      // Transform data using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
-      throw error.response?.data || error;
+      console.error('Error getting recommendations:', error);
+      return []; // Return empty array instead of throwing error
     }
   },
 
   /**
    * Create a new compliance recommendation
-   * @param {Object} data - The compliance recommendation data
-   * @returns {Promise<Object>} - The created compliance recommendation
+   * @param {Object} data - The recommendation data
+   * @returns {Promise<Object>} - The created recommendation
    */
   createComplianceRecommendation: async (data) => {
     try {
-      const response = await axios.post(`${API_URL}/compliance/recommendations`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      const response = await axios.post(`${DIRECT_API_URL}/compliance/recommendations`, transformedData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -245,14 +316,19 @@ const complianceService = {
 
   /**
    * Update a compliance recommendation
-   * @param {Number} id - The compliance recommendation ID
-   * @param {Object} data - The updated compliance recommendation data
-   * @returns {Promise<Object>} - The updated compliance recommendation
+   * @param {Number} id - The recommendation ID
+   * @param {Object} data - The updated recommendation data
+   * @returns {Promise<Object>} - The updated recommendation
    */
   updateComplianceRecommendation: async (id, data) => {
     try {
-      const response = await axios.put(`${API_URL}/compliance/recommendations/${id}`, data);
-      return response.data;
+      // Transform data using utility function
+      const transformedData = camelToSnake(data);
+      
+      const response = await axios.put(`${API_URL}/compliance/recommendations/${id}`, transformedData);
+      
+      // Transform response using utility function
+      return normalizeDataFormat(response.data);
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -292,7 +368,13 @@ const complianceService = {
     try {
       // Try to fetch from API first
       try {
-        const response = await axios.get('/api/compliance/rules', { params });
+        const response = await axios.get(`${API_URL}/compliance/rules`, { 
+          params,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
         return response.data;
       } catch (apiError) {
         console.warn('API fetch failed, using mock rules data:', apiError);

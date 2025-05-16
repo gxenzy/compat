@@ -1,4 +1,11 @@
 import api from './api';
+import axios from 'axios';
+import { apiConfig } from '../config/database';
+
+// Direct connection to backend
+const API_URL = 'http://localhost:8000/api';
+
+console.log(`Audit workflow service using API URL: ${API_URL}`);
 
 /**
  * Service for interacting with the audit task API
@@ -35,7 +42,14 @@ const auditWorkflowService = {
       queryParams.append('page', page);
       queryParams.append('limit', limit);
       
-      const response = await api.get(`/audit/tasks?${queryParams.toString()}`);
+      // Use direct connection to backend with proper path
+      const response = await axios.get(`${API_URL}/audit/tasks?${queryParams.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       return response.data;
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -50,7 +64,7 @@ const auditWorkflowService = {
    */
   getTaskById: async (id) => {
     try {
-      const response = await api.get(`/audit/tasks/${id}`);
+      const response = await api.get(`/api/audit/tasks/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching task ${id}:`, error);
@@ -65,7 +79,7 @@ const auditWorkflowService = {
    */
   createTask: async (taskData) => {
     try {
-      const response = await api.post('/audit/tasks', taskData);
+      const response = await api.post('/api/audit/tasks', taskData);
       return response.data;
     } catch (error) {
       console.error('Error creating task:', error);
@@ -81,7 +95,7 @@ const auditWorkflowService = {
    */
   updateTask: async (id, taskData) => {
     try {
-      const response = await api.put(`/audit/tasks/${id}`, taskData);
+      const response = await api.put(`/api/audit/tasks/${id}`, taskData);
       return response.data;
     } catch (error) {
       console.error(`Error updating task ${id}:`, error);
@@ -96,7 +110,7 @@ const auditWorkflowService = {
    */
   deleteTask: async (id) => {
     try {
-      const response = await api.delete(`/audit/tasks/${id}`);
+      const response = await api.delete(`/api/audit/tasks/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting task ${id}:`, error);
@@ -112,7 +126,7 @@ const auditWorkflowService = {
    */
   addComment: async (taskId, comment) => {
     try {
-      const response = await api.post(`/audit/tasks/${taskId}/comments`, { comment });
+      const response = await api.post(`/api/audit/tasks/${taskId}/comments`, { comment });
       return response.data;
     } catch (error) {
       console.error(`Error adding comment to task ${taskId}:`, error);
@@ -127,7 +141,7 @@ const auditWorkflowService = {
    */
   getTaskHistory: async (taskId) => {
     try {
-      const response = await api.get(`/audit/tasks/${taskId}/history`);
+      const response = await api.get(`/api/audit/tasks/${taskId}/history`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching history for task ${taskId}:`, error);
@@ -143,7 +157,7 @@ const auditWorkflowService = {
    */
   updateTaskStatus: async (taskId, status) => {
     try {
-      const response = await api.put(`/audit/tasks/${taskId}/status`, { status });
+      const response = await api.put(`/api/audit/tasks/${taskId}/status`, { status });
       return response.data;
     } catch (error) {
       console.error(`Error updating status for task ${taskId}:`, error);
@@ -160,7 +174,7 @@ const auditWorkflowService = {
    */
   updateApprovalStatus: async (taskId, approvalStatus, comment = null) => {
     try {
-      const response = await api.put(`/audit/tasks/${taskId}/approval`, { 
+      const response = await api.put(`/api/audit/tasks/${taskId}/approval`, { 
         approval_status: approvalStatus,
         comment
       });
@@ -177,7 +191,7 @@ const auditWorkflowService = {
    */
   getTaskAnalytics: async () => {
     try {
-      const response = await api.get('/audit/tasks/analytics/summary');
+      const response = await api.get('/api/audit/tasks/analytics/summary');
       return response.data;
     } catch (error) {
       console.error('Error fetching task analytics:', error);

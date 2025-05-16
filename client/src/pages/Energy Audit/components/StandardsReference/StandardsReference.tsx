@@ -29,6 +29,7 @@ import StandardsBrowser from './StandardsBrowser';
 import SectionViewer from './SectionViewer';
 import StandardsSearch from './StandardsSearch';
 import ComplianceChecker from './ComplianceChecker';
+import { API_BASE_URL } from '../../../../utils/apiConfig';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -90,7 +91,8 @@ const StandardsReference: React.FC = () => {
     const fetchStandards = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('/api/standards');
+        // Use direct connection to backend server with API_BASE_URL
+        const response = await axios.get(`${API_BASE_URL}/standards`);
         setStandards(response.data);
         setError(null);
       } catch (err) {

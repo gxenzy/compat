@@ -29,7 +29,7 @@ import {
   MenuBook as StandardsIcon,
   Rule as ComplianceIcon,
 } from '@mui/icons-material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { useThemeMode } from '../../contexts/ThemeContext';
@@ -61,7 +61,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
-  const navigate = useNavigate();
+  const history = useHistory();
   const location = useLocation();
   const { user } = useAuthContext();
   const theme = useTheme();
@@ -69,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   const handleNavigation = (path: string) => {
-    navigate(path);
+    history.push(path);
   };
 
   const handleToggleCollapse = (e: React.MouseEvent) => {

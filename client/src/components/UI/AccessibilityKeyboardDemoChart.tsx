@@ -256,12 +256,12 @@ const AccessibilityKeyboardDemoChart: React.FC<AccessibilityKeyboardDemoChartPro
         
         <Typography variant="body1" paragraph>
           This demo showcases the keyboard navigation capabilities for chart components. 
-          Try using the keyboard to navigate through the chart data points:
+          Try using the keyboard to history.push through the chart data points:
         </Typography>
         
         <Box component="ul" sx={{ ml: 2 }}>
           <Typography component="li">Press <strong>Tab</strong> to focus on the chart</Typography>
-          <Typography component="li">Use <strong>Arrow Keys</strong> to navigate between data points</Typography>
+          <Typography component="li">Use <strong>Arrow Keys</strong> to history.push between data points</Typography>
           <Typography component="li">Press <strong>Enter</strong> to select the current data point</Typography>
           <Typography component="li">Press <strong>Alt+H</strong> to view keyboard shortcuts</Typography>
           <Typography component="li">Press <strong>Alt+D</strong> to view the data table version</Typography>
@@ -276,7 +276,7 @@ const AccessibilityKeyboardDemoChart: React.FC<AccessibilityKeyboardDemoChartPro
               configuration={chartConfiguration}
               height={350}
               title={`${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart with Keyboard Navigation`}
-              subtitle="Use Tab to focus, then arrow keys to navigate data points"
+              subtitle="Use Tab to focus, then arrow keys to history.push data points"
               highContrastDefault={false}
               dataTableView={false}
             />

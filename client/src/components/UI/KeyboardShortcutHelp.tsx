@@ -188,7 +188,7 @@ const KeyboardShortcutHelp: React.FC<KeyboardShortcutProps> = ({
       <DialogContent dividers>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="textSecondary" gutterBottom>
-            Use these keyboard shortcuts to navigate and interact with charts. Keyboard navigation enhances accessibility and provides precise control.
+            Use these keyboard shortcuts to history.push and interact with charts. Keyboard navigation enhances accessibility and provides precise control.
           </Typography>
         </Box>
         

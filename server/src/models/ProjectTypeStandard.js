@@ -2,59 +2,111 @@
  * ProjectTypeStandard model
  * Represents standards values specific to project types (for ROI, payback, etc.)
  */
-const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../database/sequelize');
-const Standard = require('./StandardModel');
+const { Model } = require('objection');
+const db = require('../database/db');
 
+Model.knex(db);
+
+/**
+ * ProjectTypeStandard model representing the project_type_standards table
+ */
 class ProjectTypeStandard extends Model {
-  static associate(models) {
-    ProjectTypeStandard.belongsTo(models.Standard, {
-      foreignKey: 'sourceStandardId',
-      as: 'sourceStandard'
-    });
+  static get tableName() {
+    return 'project_type_standards';
+  }
+
+  static get idColumn() {
+    return 'id';
+  }
+
+  static get jsonSchema() {
+    return {
+      type: 'object',
+      required: ['project_type', 'standard_type', 'standard_code'],
+      
+      properties: {
+        id: { type: 'integer' },
+        project_type: { type: 'string', minLength: 1, maxLength: 255 },
+        standard_type: { type: 'string', minLength: 1, maxLength: 255 },
+        standard_code: { type: 'string', minLength: 1, maxLength: 255 },
+        minimum_value: { type: ['number', 'null'] },
+        maximum_value: { type: ['number', 'null'] },
+        unit: { type: ['string', 'null'], maxLength: 50 },
+        description: { type: ['string', 'null'] },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' }
+      }
+    };
+  }
+
+  // Validation rules
+  static get modelPaths() {
+    return [__dirname];
+  }
+
+  /**
+   * Applies additional validation rules beyond the JSON schema
+   */
+  $beforeInsert() {
+    this.created_at = new Date().toISOString();
+    this.updated_at = new Date().toISOString();
+    
+    // Ensure minimum_value <= maximum_value if both are defined
+    this.validateMinMaxValues();
+  }
+
+  $beforeUpdate() {
+    this.updated_at = new Date().toISOString();
+    
+    // Ensure minimum_value <= maximum_value if both are defined
+    this.validateMinMaxValues();
+  }
+
+  /**
+   * Validates that minimum_value <= maximum_value if both are defined
+   */
+  validateMinMaxValues() {
+    if (this.minimum_value !== null && this.maximum_value !== null &&
+        this.minimum_value !== undefined && this.maximum_value !== undefined &&
+        this.minimum_value > this.maximum_value) {
+      throw new Error('Minimum value cannot be greater than maximum value');
+    }
   }
 
   /**
    * Get standards for a specific project type
-   * @param {String} projectType - The project type
-   * @returns {Promise<Array>} - Array of standards for the project type
+   * @param {string} projectType - The project type to get standards for
+   * @returns {Promise<Array>} - Array of project type standards
    */
   static async getStandardsByProjectType(projectType) {
-    return await ProjectTypeStandard.findAll({
-      where: { project_type: projectType }
-    });
+    return await ProjectTypeStandard.query().where('project_type', projectType);
   }
 
   /**
-   * Get standards by project type and standard type
-   * @param {String} projectType - The project type
-   * @param {String} standardType - The standard type
-   * @returns {Promise<Array>} - Array of standards
+   * Get standards for a specific project type and standard type
+   * @param {string} projectType - The project type
+   * @param {string} standardType - The standard type
+   * @returns {Promise<Array>} - Array of project type standards
    */
   static async getStandardsByTypeAndProject(projectType, standardType) {
-    return await ProjectTypeStandard.findAll({
-      where: {
-        project_type: projectType,
-        standard_type: standardType
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', standardType);
   }
 
   /**
-   * Get a standard value for a specific project type, standard type, and code
-   * @param {String} projectType - The project type
-   * @param {String} standardType - The standard type
-   * @param {String} standardCode - The standard code
-   * @returns {Promise<Object>} - The standard value
+   * Get a specific standard value for a project type
+   * @param {string} projectType - The project type
+   * @param {string} standardType - The standard type
+   * @param {string} standardCode - The standard code
+   * @returns {Promise<Object>} - The project type standard
    */
   static async getStandardValue(projectType, standardType, standardCode) {
-    return await ProjectTypeStandard.findOne({
-      where: {
-        project_type: projectType,
-        standard_type: standardType,
-        standard_code: standardCode
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', standardType)
+      .andWhere('standard_code', standardCode)
+      .first();
   }
 
   /**
@@ -63,13 +115,11 @@ class ProjectTypeStandard extends Model {
    * @returns {Promise<Object>} - The ROI standard value
    */
   static async getROIStandard(projectType) {
-    return await ProjectTypeStandard.findOne({
-      where: {
-        project_type: projectType,
-        standard_type: 'financial',
-        standard_code: 'FNANCL-ROI'
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', 'financial')
+      .andWhere('standard_code', 'FNANCL-ROI')
+      .first();
   }
 
   /**
@@ -78,13 +128,11 @@ class ProjectTypeStandard extends Model {
    * @returns {Promise<Object>} - The payback period standard value
    */
   static async getPaybackStandard(projectType) {
-    return await ProjectTypeStandard.findOne({
-      where: {
-        project_type: projectType,
-        standard_type: 'financial',
-        standard_code: 'FNANCL-PAYBCK'
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', 'financial')
+      .andWhere('standard_code', 'FNANCL-PAYBCK')
+      .first();
   }
 
   /**
@@ -93,13 +141,11 @@ class ProjectTypeStandard extends Model {
    * @returns {Promise<Object>} - The NPV ratio standard value
    */
   static async getNPVRatioStandard(projectType) {
-    return await ProjectTypeStandard.findOne({
-      where: {
-        project_type: projectType,
-        standard_type: 'financial',
-        standard_code: 'FNANCL-NPV'
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', 'financial')
+      .andWhere('standard_code', 'FNANCL-NPV')
+      .first();
   }
 
   /**
@@ -108,84 +154,12 @@ class ProjectTypeStandard extends Model {
    * @returns {Promise<Object>} - The IRR margin standard value
    */
   static async getIRRMarginStandard(projectType) {
-    return await ProjectTypeStandard.findOne({
-      where: {
-        project_type: projectType,
-        standard_type: 'financial',
-        standard_code: 'FNANCL-IRR'
-      }
-    });
+    return await ProjectTypeStandard.query()
+      .where('project_type', projectType)
+      .andWhere('standard_type', 'financial')
+      .andWhere('standard_code', 'FNANCL-IRR')
+      .first();
   }
 }
-
-ProjectTypeStandard.init(
-  {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    projectType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'project_type'
-    },
-    standardType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'standard_type'
-    },
-    standardCode: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'standard_code'
-    },
-    minimumValue: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      field: 'minimum_value'
-    },
-    maximumValue: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      field: 'maximum_value'
-    },
-    unit: {
-      type: DataTypes.STRING(20),
-      allowNull: true
-    },
-    sourceStandardId: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: 'standards',
-        key: 'id'
-      },
-      allowNull: true,
-      field: 'source_standard_id'
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at'
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'updated_at'
-    }
-  },
-  {
-    sequelize,
-    modelName: 'ProjectTypeStandard',
-    tableName: 'project_type_standards',
-    underscored: true
-  }
-);
 
 module.exports = ProjectTypeStandard; 

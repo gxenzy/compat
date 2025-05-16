@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import  BrowserRouter, Switch, Route  from 'react-router-dom';
 import { ReportEditor } from '../index';
 import reportService from '../../../services/reportService';
 import { Report, ReportContent } from '../../../types/reports';
@@ -95,9 +95,9 @@ const renderWithRouter = (editMode: boolean = true) => {
   
   return render(
     <BrowserRouter>
-      <Routes>
-        <Route path="*" element={<ReportEditor />} />
-      </Routes>
+      <Switch>
+        <Route path="*" component={() => <ReportEditor />} />
+      </Switch>
     </BrowserRouter>
   );
 };

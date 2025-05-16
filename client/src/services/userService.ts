@@ -1,10 +1,12 @@
 import axios from 'axios';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import api from './api';
 import { apiConfig } from '../config/database';
 
-// API base URL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// Direct connection to backend
+const API_URL = 'http://localhost:8000/api';
+
+console.log(`User service using API URL: ${API_URL}`);
 
 /**
  * Get all users
@@ -12,9 +14,9 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
  */
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    // First try regular API endpoint with full URL
-    console.log('[GET ALL] Using standard endpoint /users');
-    const response = await axios.get(`${apiConfig.baseUrl}/users`, {
+    // Use direct connection to backend with fixed URL
+    console.log(`[GET ALL] Using direct connection to: ${API_URL}/users`);
+    const response = await axios.get(`${API_URL}/users`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
@@ -26,38 +28,22 @@ export const getAllUsers = async (): Promise<User[]> => {
     console.warn('[GET ALL] Standard API failed:', error);
     
     try {
-      // Use a clean base URL without duplicating /api
-      const baseUrl = apiConfig.baseUrl.endsWith('/api') 
-        ? apiConfig.baseUrl 
-        : `${apiConfig.baseUrl}/api`;
-        
-      console.log(`[GET ALL] Trying direct endpoint with baseUrl ${baseUrl}`);
-      const response = await axios.get(`${baseUrl}/users`, {
+      // Try fallback endpoint with direct connection
+      console.log(`[GET ALL] Trying fallback endpoint: ${API_URL}/users/all`);
+      const response = await axios.get(`${API_URL}/users/all`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
-      console.log('[GET ALL] Direct API success:', response.data);
+      console.log('[GET ALL] Fallback API success:', response.data);
       return response.data;
     } catch (alternateError) {
-      console.warn('[GET ALL] Direct API failed, trying debug endpoint:', alternateError);
+      console.warn('[GET ALL] Fallback API failed:', alternateError);
       
-      // Last try with debug endpoint
-      const cleanBaseUrl = apiConfig.baseUrl.endsWith('/api')
-        ? apiConfig.baseUrl.substring(0, apiConfig.baseUrl.length - 4)
-        : apiConfig.baseUrl;
-      
-      console.log(`[GET ALL] Trying debug endpoint ${cleanBaseUrl}/debug/users`);
-      const debugResponse = await axios.get(`${cleanBaseUrl}/debug/users`);
-      
-      if (debugResponse.data && debugResponse.data.success && debugResponse.data.users) {
-        console.log('[GET ALL] Debug API success:', debugResponse.data.users);
-        return debugResponse.data.users;
-      } else {
-        console.error('[GET ALL] Invalid response format from debug endpoint');
-        throw new Error('Invalid response format from debug endpoint');
-      }
+      // Return empty array as last resort
+      console.log('[GET ALL] All endpoints failed, returning empty array');
+      return [];
     }
   }
 };
@@ -69,7 +55,7 @@ export const getUserById = async (userId: string | number): Promise<User> => {
   try {
     // First try regular API endpoint with full URL
     console.log(`[GET] Using standard endpoint /users/${userId}`);
-    const response = await axios.get(`${apiConfig.baseUrl}/users/${userId}`, {
+    const response = await axios.get(`${API_URL}/users/${userId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
@@ -82,9 +68,9 @@ export const getUserById = async (userId: string | number): Promise<User> => {
     
     try {
       // Use a clean base URL without duplicating /api
-      const baseUrl = apiConfig.baseUrl.endsWith('/api') 
-        ? apiConfig.baseUrl 
-        : `${apiConfig.baseUrl}/api`;
+      const baseUrl = API_URL.endsWith('/api') 
+        ? API_URL 
+        : `${API_URL}/api`;
         
       console.log(`[GET] Trying direct endpoint with baseUrl ${baseUrl}`);
       const response = await axios.get(`${baseUrl}/users/${userId}`, {
@@ -99,9 +85,9 @@ export const getUserById = async (userId: string | number): Promise<User> => {
       console.warn(`[GET] Direct API failed, trying debug endpoint:`, alternateError);
       
       // Last try with debug endpoint
-      const cleanBaseUrl = apiConfig.baseUrl.endsWith('/api')
-        ? apiConfig.baseUrl.substring(0, apiConfig.baseUrl.length - 4)
-        : apiConfig.baseUrl;
+      const cleanBaseUrl = API_URL.endsWith('/api')
+        ? API_URL.substring(0, API_URL.length - 4)
+        : API_URL;
       
       const debugResponse = await axios.get(`${cleanBaseUrl}/debug/users/${userId}`);
       
@@ -258,7 +244,7 @@ export const updateUser = async (userId: string | number, userData: Partial<User
     // First attempt the standard API endpoint
     try {
       console.log(`[UPDATE] Using standard endpoint /users/${userId}`);
-      const response = await axios.put(`${apiConfig.baseUrl}/users/${userId}`, userData, {
+      const response = await axios.put(`${API_URL}/users/${userId}`, userData, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -276,9 +262,9 @@ export const updateUser = async (userId: string | number, userData: Partial<User
       // Try direct endpoint without checking for /api prefix
       try {
         // Use a clean base URL without duplicating /api
-        const baseUrl = apiConfig.baseUrl.endsWith('/api') 
-          ? apiConfig.baseUrl 
-          : `${apiConfig.baseUrl}/api`;
+        const baseUrl = API_URL.endsWith('/api') 
+          ? API_URL 
+          : `${API_URL}/api`;
           
         console.log(`[UPDATE] Trying direct endpoint with baseUrl ${baseUrl}`);
         const response = await axios.put(`${baseUrl}/users/${userId}`, userData, {
@@ -381,56 +367,181 @@ export const getUserAuditLogs = async (userId: string | number): Promise<any[]> 
  * @returns A list of users with the specified roles
  */
 export const getUsersByRoles = async (roles: string[] = []): Promise<User[]> => {
-  try {
-    // Build query for roles filter
-    const rolesQuery = roles.length > 0 
-      ? `?roles=${roles.join(',')}`
-      : '';
+  // Ensure roles is definitely an array before processing
+  const validRoles = Array.isArray(roles) 
+    ? roles
+        .filter(role => typeof role === 'string' && role.trim().length > 0)
+        .map(role => role.toLowerCase().trim())
+    : [];
+  
+  // Track API attempts to prevent spam
+  let apiAttempts = 0;
+  const maxApiAttempts = 3;
     
-    const response = await api.get(`/users/by-roles${rolesQuery}`);
+  // Function to sanitize user objects to prevent NaN and SQL issues
+  const sanitizeUser = (user: any): User | null => {
+    if (!user || typeof user !== 'object') return null;
     
-    // Format user data to ensure names are properly displayed
-    return response.data.map((user: any) => {
-      // Create a formatted user object with proper name handling
-      return {
-        ...user,
-        // Use first_name and last_name if available, otherwise fallback to appropriate values
-        first_name: user.first_name || user.firstName || user.username || 'User',
-        last_name: user.last_name || user.lastName || user.id || '',
-        // Add a formatted name field that will be used for display
-        name: `${user.first_name || user.firstName || user.username || 'User'} ${user.last_name || user.lastName || user.id || ''}`
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching users by roles:', error);
-    
-    // Fallback to getting all users and filtering client-side
     try {
-      const allUsers = await getAllUsers();
+      // Generate a safe ID string that will never cause SQL issues
+      // We explicitly convert to string and remove any characters that could be problematic
+      let userId: string;
       
-      // If no roles specified, return all users
-      if (roles.length === 0) {
-        // Format all users to ensure names are properly displayed
-        return allUsers.map((user: any) => ({
-          ...user,
-          first_name: user.first_name || user.firstName || user.username || 'User',
-          last_name: user.last_name || user.lastName || user.id || '',
-          name: `${user.first_name || user.firstName || user.username || 'User'} ${user.last_name || user.lastName || user.id || ''}`
-        }));
+      // Handle null, undefined, NaN, or empty ID cases
+      if (user.id === undefined || user.id === null || 
+          (typeof user.id === 'number' && isNaN(user.id)) ||
+          user.id === '') {
+        // Generate a temporary ID that's safe for SQL
+        userId = `temp-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      } else {
+        // Ensure ID is a clean string by removing non-alphanumeric chars
+        userId = String(user.id).replace(/[^a-zA-Z0-9_-]/g, '');
       }
       
-      // Filter users by role and format their names
-      return allUsers
-        .filter(user => roles.includes(user.role.toLowerCase()))
-        .map((user: any) => ({
-          ...user,
-          first_name: user.first_name || user.firstName || user.username || 'User',
-          last_name: user.last_name || user.lastName || user.id || '',
-          name: `${user.first_name || user.firstName || user.username || 'User'} ${user.last_name || user.lastName || user.id || ''}`
-        }));
+      // Safely handle user role
+      let userRole: UserRole;
+      try {
+        // If role is a valid string and maps to a UserRole
+        if (typeof user.role === 'string' && 
+            Object.values(UserRole).includes(user.role.toLowerCase() as UserRole)) {
+          userRole = user.role.toLowerCase() as UserRole;
+        } else {
+          userRole = UserRole.USER; // Default fallback
+        }
+      } catch (e) {
+        userRole = UserRole.USER; // Safety fallback
+      }
+      
+      // For name fields, ensure they're strings and provide defaults
+      const firstName = typeof user.firstName === 'string' ? user.firstName : 
+                      (typeof user.first_name === 'string' ? user.first_name : '');
+      
+      const lastName = typeof user.lastName === 'string' ? user.lastName : 
+                     (typeof user.last_name === 'string' ? user.last_name : '');
+      
+      // Return a properly typed and sanitized user object
+      return {
+        id: userId,
+        username: typeof user.username === 'string' ? user.username : `user_${userId}`,
+        email: typeof user.email === 'string' ? user.email : `${userId}@example.com`,
+        role: userRole,
+        firstName: firstName,
+        lastName: lastName,
+        name: `${firstName} ${lastName}`.trim() || `User ${userId}`,
+        isActive: Boolean(user.isActive !== undefined ? user.isActive : true),
+        createdAt: user.createdAt instanceof Date ? user.createdAt : new Date(),
+        updatedAt: user.updatedAt instanceof Date ? user.updatedAt : new Date()
+      };
+    } catch (e) {
+      console.error('Error sanitizing user:', e);
+      return null; // If anything goes wrong, skip this user
+    }
+  };
+  
+  try {
+    console.log(`Fetching users with roles: ${validRoles.join(', ') || 'all'}`);
+    
+    // Build the query string - only include valid roles
+    const queryString = validRoles.length > 0 
+      ? `?roles=${encodeURIComponent(validRoles.join(','))}` 
+      : '';
+      
+    // Try primary API endpoint with direct backend URL
+    try {
+      apiAttempts++;
+      console.log(`[Attempt ${apiAttempts}] Using primary API endpoint for user roles: ${API_URL}/users/by-roles${queryString}`);
+      
+      const response = await axios.get(`${API_URL}/users/by-roles${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Validate the response is an array before proceeding
+      if (!Array.isArray(response.data)) {
+        console.warn('API returned non-array response:', response.data);
+        throw new Error('Invalid API response format');
+      }
+      
+      // Process and sanitize the users, removing any that failed sanitization
+      return response.data
+        .map(sanitizeUser)
+        .filter((user): user is User => user !== null);
+        
+    } catch (primaryError) {
+      console.warn('Primary endpoint failed, trying alternative:', primaryError);
+      
+      // If we've reached max attempts, rethrow to trigger fallback
+      if (apiAttempts >= maxApiAttempts) {
+        throw primaryError;
+      }
+      
+      // Try alternative endpoint - users/all with direct URL
+      try {
+        apiAttempts++;
+        console.log(`[Attempt ${apiAttempts}] Trying alternative endpoint: ${API_URL}/users/all`);
+        
+        const response = await axios.get(`${API_URL}/users/all`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Validate response
+        if (!Array.isArray(response.data)) {
+          console.warn('Alternative API returned non-array response:', response.data);
+          throw new Error('Invalid API response format');
+        }
+        
+        // If no roles filter, return all users
+        if (validRoles.length === 0) {
+          return response.data
+            .map(sanitizeUser)
+            .filter((user): user is User => user !== null);
+        }
+        
+        // Otherwise filter by role
+        return response.data
+          .map(sanitizeUser)
+          .filter((user): user is User => {
+            if (!user || !user.role) return false;
+            return validRoles.includes(user.role.toLowerCase());
+          });
+          
+      } catch (secondaryError) {
+        console.warn('Alternative endpoint failed as well:', secondaryError);
+        throw secondaryError;
+      }
+    }
+  } catch (error) {
+    console.error('All API attempts failed, using getAllUsers as fallback:', error);
+    
+    // Fallback to getting all users
+    try {
+      // Get all users and apply sanitization
+      const allUsers = await getAllUsers();
+      
+      const sanitizedUsers = allUsers
+        .map(sanitizeUser)
+        .filter((user): user is User => user !== null);
+      
+      // If no roles filter, return all sanitized users
+      if (validRoles.length === 0) {
+        return sanitizedUsers;
+      }
+      
+      // Filter by role if specified
+      return sanitizedUsers.filter(user => {
+        const userRoleStr = user.role.toLowerCase();
+        return validRoles.includes(userRoleStr);
+      });
+      
     } catch (fallbackError) {
-      console.error('Fallback for getting users by roles also failed:', fallbackError);
-      throw fallbackError;
+      console.error('getAllUsers fallback also failed:', fallbackError);
+      // Return empty array instead of throwing
+      return [];
     }
   }
 };

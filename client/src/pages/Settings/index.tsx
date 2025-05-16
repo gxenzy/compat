@@ -38,7 +38,7 @@ import {
   TextFields as TextFieldsIcon,
   SlowMotionVideo as ReduceMotionIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useAppDispatch } from '../../store';
 import { updateUser } from '../../store/slices/authSlice';
@@ -51,7 +51,7 @@ import { useAccessibilitySettings } from '../../contexts/AccessibilitySettingsCo
 const Settings: React.FC = () => {
   const { currentUser } = useAuthContext();
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const history = useHistory();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const { setNotificationPreferences } = useUserContext();
@@ -226,7 +226,7 @@ const Settings: React.FC = () => {
                     <Button 
                       variant="outlined" 
                       size="small"
-                      onClick={() => navigate('/settings/accessibility/chart-examples')}
+                      onClick={() => history.push('/settings/accessibility/chart-examples')}
                     >
                       View Examples
                     </Button>

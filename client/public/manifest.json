@@ -1,0 +1,41 @@
+{
+  "short_name": "CompAT",
+  "name": "Compliance Audit Tool",
+  "icons": [
+    {
+      "src": "logo-black.png",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "logo-black-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo-black-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "description": "Compliance Audit Tool for energy audits and electrical system analysis",
+  "orientation": "portrait",
+  "categories": ["utilities", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View system dashboard"
+    },
+    {
+      "name": "Energy Audit",
+      "url": "/energy-audit",
+      "description": "Run energy audit"
+    }
+  ]
+}

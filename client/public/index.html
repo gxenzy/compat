@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/logo-black.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="CompAT [Compliance Audit Tool] - Innovative Web-Based Energy Audit Platform for Power Quality and Efficiency"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo-black-192x192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- MUI Roboto Font -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <!-- MUI Icons -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    />
+    <title>Compliance Audit Tool</title>
+    
+    <!-- Emergency authentication check -->
+    <script>
+      (function() {
+        // Check if we're on login page but already have token
+        if (window.location.hash === "#/login" && localStorage.getItem('token')) {
+          console.log("🔐 TOKEN FOUND: Redirecting to dashboard...");
+          window.location.hash = "#/dashboard";
+        }
+      })();
+    </script>
+    <!-- Fix for form submissions and direct URL access with HashRouter -->
+    <script>
+      // Handle form submission issues by ensuring proper navigation
+      document.addEventListener('DOMContentLoaded', function() {
+        // Force all forms to use JavaScript for submission
+        document.querySelectorAll('form').forEach(form => {
+          form.addEventListener('submit', function(e) {
+            // Always prevent default form submission
+            e.preventDefault();
+            console.log("Form submission intercepted and prevented");
+            // The React handlers will take care of processing the form
+          });
+        });
+
+        // Handle any direct URL access issues
+        if (!window.location.hash && window.location.pathname !== '/') {
+          // Redirect to the HashRouter format
+          const path = window.location.pathname;
+          window.location.href = '/#' + path;
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

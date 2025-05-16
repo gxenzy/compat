@@ -1,6 +1,7 @@
 import api from './api';
 import { User, UserRole } from '../types';
 import jwt_decode from 'jwt-decode';
+import { apiConfig } from '../config/database';
 
 interface LoginResponse {
   token: string;
@@ -17,80 +18,82 @@ interface TokenPayload {
 // Login function
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   const loginData = { username, password };
-  console.log('Starting login with credentials:', username);
   
-  // Try all possible login endpoints in sequence until one succeeds
-  const endpoints = [
-    '/auth/login',     // Will become baseUrl + /auth/login (clean)
-    '/login',          // Will become baseUrl + /login (clean)
-    'login'            // Direct endpoint without leading slash
-  ];
+  console.log('💡 AUTH SERVICE: Starting login attempt...');
   
-  let lastError = null;
-  
-  // Try each endpoint in sequence
-  for (const endpoint of endpoints) {
+  try {
+    // Use the configured API URL or default to relative path
+    const loginEndpoint = '/api/auth/login';
+    console.log(`💡 AUTH SERVICE: Using login endpoint: ${loginEndpoint}`);
+    
+    const axios = (await import('axios')).default;
+    
+    // Enhance login request with clear error handling
     try {
-      console.log(`Attempting login at ${endpoint}`);
-      const response = await api.post(endpoint, loginData);
+      const response = await axios.post(loginEndpoint, loginData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      });
       
-      // If successful, store token and return
+      console.log(`💡 AUTH SERVICE: Login response status:`, response.status);
+      
+      if (!response.data) {
+        console.error('💡 AUTH SERVICE: Empty response from server');
+        throw new Error('Empty response received from server');
+      }
+      
+      if (!response.data.token) {
+        console.error('💡 AUTH SERVICE: No token in response');
+        throw new Error('No token received from server');
+      }
+      
+      // Store authentication data
+      console.log('💡 AUTH SERVICE: Storing authentication data');
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('currentUser', JSON.stringify(response.data.user));
       
-      console.log(`Login successful using ${endpoint}`);
+      if (response.data.user) {
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+      } else {
+        console.warn('💡 AUTH SERVICE: No user data in response');
+      }
+      
       return {
         token: response.data.token,
         user: response.data.user
       };
-    } catch (error) {
-      console.warn(`Login attempt failed at ${endpoint}:`, error);
-      lastError = error;
-      // Continue to next endpoint
+    } catch (axiosError: any) {
+      console.error('💡 AUTH SERVICE: Axios request failed:', axiosError.message);
+      throw axiosError;
     }
-  }
-  
-  // If we've exhausted all endpoints, try direct axios call without using our API wrapper
-  try {
-    console.log('All previous attempts failed, trying direct axios call to server');
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-    // Remove any trailing /api to get the clean base URL
-    const cleanBaseUrl = baseUrl.endsWith('/api') 
-      ? baseUrl.substring(0, baseUrl.length - 4) 
-      : baseUrl;
+  } catch (error: any) {
+    console.error(`💡 AUTH SERVICE: Login failed:`, error);
     
-    const response = await api.post('/login', loginData, {
-      baseURL: cleanBaseUrl // Use clean base URL without /api
-    });
+    // Provide helpful error messages based on the error type
+    if (error.message?.includes('Network Error')) {
+      throw new Error('Cannot connect to server. Please check if the server is running.');
+    }
     
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error ||
+                        error.message ||
+                        'Login failed. Please try again.';
     
-    return {
-      token: response.data.token,
-      user: response.data.user
-    };
-  } catch (directError) {
-    console.error('All login attempts failed:', directError);
-    throw new Error('Login failed: Invalid username or password');
+    throw new Error(errorMessage);
   }
 };
 
 /**
- * Logout user
+ * Logout user - client-side only
  */
 export const logout = async (): Promise<void> => {
-  try {
-    // Call logout API endpoint if it exists
-    await api.post('/auth/logout');
-  } catch (error) {
-    // Continue with logout even if API call fails
-    console.warn('Logout API call failed, continuing with local logout');
-  } finally {
-    // Remove token and user from localStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('currentUser');
-  }
+  // Clean up local storage immediately - this is the most important part
+  localStorage.removeItem('token');
+  localStorage.removeItem('currentUser');
+  
+  // We're not attempting server communication anymore as it's not reliable
+  console.log('AUTH SERVICE: Performed client-side logout');
 };
 
 /**
@@ -134,63 +137,33 @@ export const verifyToken = async (): Promise<User | null> => {
       return null;
     }
     
-    // Instead of verifying with backend (which might 404), check token locally
     try {
-      // First try decoding the token to validate locally
+      // Decode the token to check expiration
       const decoded: any = jwt_decode(token);
       const currentTime = Date.now() / 1000;
       
       // Check if token is expired
       if (decoded.exp < currentTime) {
-        console.log('Token is expired locally');
-        throw new Error('Token expired');
+        console.log('Token is expired');
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
+        return null;
       }
       
-      // If we have a current user in localStorage, use that instead of making API call
-      const userJson = localStorage.getItem('currentUser');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson) as User;
-          console.log('Using cached user from localStorage');
-          return user;
-        } catch (parseError) {
-          console.error('Failed to parse user from localStorage', parseError);
-        }
-      }
-      
-      // Only if we don't have cached user, try API call
+      // Try to get user info from API
       const response = await api.get<User>('/auth/verify');
       localStorage.setItem('currentUser', JSON.stringify(response.data));
       return response.data;
-    } catch (tokenError) {
-      // If backend verify fails, but token looks valid locally, create a temporary user
-      // from the decoded token to prevent logout
-      try {
-        if (token) {
-          const decoded: any = jwt_decode(token);
-          const currentTime = Date.now() / 1000;
-          
-          if (decoded.exp > currentTime) {
-            // Token is still valid, try to get user from localStorage
-            const userJson = localStorage.getItem('currentUser');
-            if (userJson) {
-              return JSON.parse(userJson) as User;
-            }
-          }
-        }
-      } catch (fallbackError) {
-        console.error('Token restore fallback failed', fallbackError);
-      }
-      
-      throw tokenError;
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      return null;
     }
   } catch (error) {
-    console.error('Token verification failed', error);
-    
-    // Clear authentication data
+    console.error('General error during token verification:', error);
     localStorage.removeItem('token');
     localStorage.removeItem('currentUser');
-    
     return null;
   }
 };

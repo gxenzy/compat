@@ -282,7 +282,7 @@ const EnhancedAccessibleChart: React.FC<EnhancedAccessibleChartProps> = ({
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={ariaLabel || `${title} chart. Use arrow keys to navigate data points.`}
+      aria-label={ariaLabel || `${title} chart. Use arrow keys to history.push data points.`}
     >
       {/* Title and controls */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -350,7 +350,7 @@ const EnhancedAccessibleChart: React.FC<EnhancedAccessibleChartProps> = ({
       {/* Keyboard navigation help */}
       <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
         <Typography variant="caption" color="textSecondary">
-          Use arrow keys to navigate. Press Alt+H for keyboard shortcuts.
+          Use arrow keys to history.push. Press Alt+H for keyboard shortcuts.
         </Typography>
       </Box>
       

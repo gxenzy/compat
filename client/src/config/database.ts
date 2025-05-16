@@ -11,11 +11,25 @@ export const dbConfig = {
   database: process.env.REACT_APP_DB_NAME || 'energyauditdb',
 };
 
+// Get the API URL with fallback - in development, we'll prefer empty baseUrl to leverage proxy
+const isDevelopment = process.env.NODE_ENV === 'development';
+const getApiUrl = () => {
+  if (isDevelopment) {
+    console.log('Development environment: Using proxy for API requests');
+    return ''; // Empty baseUrl for proxy
+  } else {
+    // For production, use the environment variable
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+    console.log(`Production environment: Using API URL: ${apiUrl}`);
+    return apiUrl;
+  }
+};
+
 /**
  * API connection configuration
  */
 export const apiConfig = {
-  baseUrl: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseUrl: getApiUrl(),
   wsUrl: process.env.REACT_APP_WS_URL || 'ws://localhost:8000',
   timeout: 30000, // 30 seconds
   retries: 3,

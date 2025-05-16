@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import TagFilter from './TagFilter';
-import standardsService from '../../services/StandardsService';
+import enhancedStandardsService from '../../services/EnhancedStandardsService';
 
 interface Standard {
   id: string;
@@ -101,7 +101,7 @@ const StandardsBrowser: React.FC<{
   const fetchStandards = async () => {
     try {
       setLoading(true);
-      const data = await standardsService.getStandards();
+      const data = await enhancedStandardsService.getStandards();
       setStandards(data);
       setLoading(false);
     } catch (error) {
@@ -114,7 +114,7 @@ const StandardsBrowser: React.FC<{
   const fetchSections = async (standardId: string, parentId: string | null = null) => {
     try {
       setLoading(true);
-      const data = await standardsService.getSections(standardId, parentId || undefined);
+      const data = await enhancedStandardsService.getSections(standardId, parentId as string);
       setSections(data);
       setLoading(false);
     } catch (error) {
@@ -131,7 +131,7 @@ const StandardsBrowser: React.FC<{
         tags: filters.tags
       };
       
-      const results = await standardsService.searchSections(query, options);
+      const results = await enhancedStandardsService.searchSections(query, options);
       setSearchResults(results);
       setIsSearching(false);
     } catch (error) {

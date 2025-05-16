@@ -21,7 +21,7 @@ import {
   MenuItem,
   Paper
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
 import { ReportTemplate, ReportType } from '../../types/reports';
 import reportService from '../../services/reportService';
 
@@ -126,7 +126,7 @@ const reportTypeOptions: { value: ReportType | 'all'; label: string }[] = [
  * ReportTemplates component for browsing and selecting report templates
  */
 const ReportTemplates: React.FC = () => {
-  const navigate = useNavigate();
+  const history = useHistory();
   
   // Templates state
   const [templates, setTemplates] = useState<ReportTemplate[]>([]);
@@ -188,7 +188,7 @@ const ReportTemplates: React.FC = () => {
     if (!selectedTemplate) return;
     
     // Navigate to report creation with template ID
-    navigate(`/reports/create?template=${selectedTemplate.id}`);
+    history.push(`/reports/create?template=${selectedTemplate.id}`);
     setPreviewOpen(false);
   };
   
@@ -204,7 +204,7 @@ const ReportTemplates: React.FC = () => {
   
   // Handle create custom report
   const handleCreateCustom = () => {
-    navigate('/reports/create');
+    history.push('/reports/create');
   };
   
   if (loading) {

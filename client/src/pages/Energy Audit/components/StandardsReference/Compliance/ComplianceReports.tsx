@@ -213,7 +213,7 @@ const ComplianceReports: React.FC = () => {
   };
   
   const handleViewReport = (reportId: number) => {
-    // In a real app, this would navigate to report details
+    // In a real app, this would history.push to report details
     console.log('Viewing report details:', reportId);
   };
   

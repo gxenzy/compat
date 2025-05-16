@@ -1,0 +1,247 @@
+{
+  "format": "graph-model",
+  "generatedBy": "TensorFlow.js Converter v3.18.0",
+  "convertedBy": "TensorFlow.js Converter v3.18.0",
+  "modelTopology": {
+    "node": [
+      {
+        "name": "image_tensor",
+        "op": "Placeholder",
+        "attr": {
+          "dtype": {
+            "type": "DT_FLOAT"
+          },
+          "shape": {
+            "shape": {
+              "dim": [
+                {
+                  "size": "-1"
+                },
+                {
+                  "size": "300"
+                },
+                {
+                  "size": "300"
+                },
+                {
+                  "size": "3"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "detection_boxes",
+        "op": "Const",
+        "attr": {
+          "dtype": {
+            "type": "DT_FLOAT"
+          },
+          "value": {
+            "tensor": {
+              "dtype": "DT_FLOAT",
+              "tensorShape": {
+                "dim": [
+                  {
+                    "size": "1"
+                  },
+                  {
+                    "size": "10"
+                  },
+                  {
+                    "size": "4"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "detection_scores",
+        "op": "Const",
+        "attr": {
+          "dtype": {
+            "type": "DT_FLOAT"
+          },
+          "value": {
+            "tensor": {
+              "dtype": "DT_FLOAT",
+              "tensorShape": {
+                "dim": [
+                  {
+                    "size": "1"
+                  },
+                  {
+                    "size": "10"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "detection_classes",
+        "op": "Const",
+        "attr": {
+          "dtype": {
+            "type": "DT_FLOAT"
+          },
+          "value": {
+            "tensor": {
+              "dtype": "DT_FLOAT",
+              "tensorShape": {
+                "dim": [
+                  {
+                    "size": "1"
+                  },
+                  {
+                    "size": "10"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "num_detections",
+        "op": "Const",
+        "attr": {
+          "dtype": {
+            "type": "DT_FLOAT"
+          },
+          "value": {
+            "tensor": {
+              "dtype": "DT_FLOAT",
+              "tensorShape": {
+                "dim": [
+                  {
+                    "size": "1"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "library": {},
+    "versions": {
+      "producer": 321
+    }
+  },
+  "signature": {
+    "inputs": {
+      "image_tensor": {
+        "name": "image_tensor:0",
+        "dtype": "DT_FLOAT",
+        "tensorShape": {
+          "dim": [
+            {
+              "size": "-1"
+            },
+            {
+              "size": "300"
+            },
+            {
+              "size": "300"
+            },
+            {
+              "size": "3"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": {
+      "detection_boxes": {
+        "name": "detection_boxes:0",
+        "dtype": "DT_FLOAT",
+        "tensorShape": {
+          "dim": [
+            {
+              "size": "1"
+            },
+            {
+              "size": "10"
+            },
+            {
+              "size": "4"
+            }
+          ]
+        }
+      },
+      "detection_scores": {
+        "name": "detection_scores:0",
+        "dtype": "DT_FLOAT",
+        "tensorShape": {
+          "dim": [
+            {
+              "size": "1"
+            },
+            {
+              "size": "10"
+            }
+          ]
+        }
+      },
+      "detection_classes": {
+        "name": "detection_classes:0",
+        "dtype": "DT_FLOAT",
+        "tensorShape": {
+          "dim": [
+            {
+              "size": "1"
+            },
+            {
+              "size": "10"
+            }
+          ]
+        }
+      },
+      "num_detections": {
+        "name": "num_detections:0",
+        "dtype": "DT_FLOAT",
+        "tensorShape": {
+          "dim": [
+            {
+              "size": "1"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "weightsManifest": [
+    {
+      "paths": [
+        "weights.bin"
+      ],
+      "weights": [
+        {
+          "name": "detection_boxes",
+          "shape": [1, 10, 4],
+          "dtype": "float32"
+        },
+        {
+          "name": "detection_scores",
+          "shape": [1, 10],
+          "dtype": "float32"
+        },
+        {
+          "name": "detection_classes",
+          "shape": [1, 10],
+          "dtype": "float32"
+        },
+        {
+          "name": "num_detections",
+          "shape": [1],
+          "dtype": "float32"
+        }
+      ]
+    }
+  ]
+} 
