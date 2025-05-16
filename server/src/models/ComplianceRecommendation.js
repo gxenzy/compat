@@ -2,132 +2,124 @@
  * ComplianceRecommendation model
  * Represents recommendation templates for non-compliant results
  */
-const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../database/sequelize');
+const { Model } = require('objection');
+const db = require('../database/db');
 
+Model.knex(db);
+
+/**
+ * ComplianceRecommendation model representing the compliance_recommendations table
+ */
 class ComplianceRecommendation extends Model {
-  static associate(models) {
-    ComplianceRecommendation.belongsTo(models.ComplianceRule, {
-      foreignKey: 'rule_id',
-      as: 'rule'
-    });
+  static get tableName() {
+    return 'compliance_recommendations';
+  }
+
+  static get idColumn() {
+    return 'id';
+  }
+
+  static get jsonSchema() {
+    return {
+      type: 'object',
+      required: ['rule_id', 'non_compliance_type', 'recommendation_text', 'calculator_type'],
+      
+      properties: {
+        id: { type: 'integer' },
+        rule_id: { type: 'integer' },
+        non_compliance_type: { type: 'string', minLength: 1, maxLength: 255 },
+        recommendation_text: { type: 'string', minLength: 1 },
+        priority: { 
+          type: 'string', 
+          enum: ['high', 'medium', 'low'],
+          default: 'medium'
+        },
+        calculator_type: { type: 'string', minLength: 1, maxLength: 255 },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' }
+      }
+    };
+  }
+
+  // Validation rules
+  static get modelPaths() {
+    return [__dirname];
   }
 
   /**
-   * Get recommendations for a specific rule
-   * @param {Number} ruleId - The rule ID
-   * @returns {Promise<Array>} - Array of recommendations for the rule
+   * Applies additional validation rules beyond the JSON schema
    */
-  static async getRecommendationsByRule(ruleId) {
-    return await ComplianceRecommendation.findAll({
-      where: { rule_id: ruleId }
-    });
+  $beforeInsert() {
+    this.created_at = new Date().toISOString();
+    this.updated_at = new Date().toISOString();
+    
+    // Set default priority if not provided
+    if (!this.priority) {
+      this.priority = 'medium';
+    }
+  }
+
+  $beforeUpdate() {
+    this.updated_at = new Date().toISOString();
+  }
+
+  /**
+   * Get recommendations by rule ID
+   * @param {number} ruleId - The rule ID
+   * @returns {Promise<Array>} - Array of recommendations
+   */
+  static async getRecommendationsByRuleId(ruleId) {
+    return await ComplianceRecommendation.query().where('rule_id', ruleId);
   }
 
   /**
    * Get recommendations by calculator type
-   * @param {String} calculatorType - The calculator type
+   * @param {string} calculatorType - The calculator type
    * @returns {Promise<Array>} - Array of recommendations
    */
   static async getRecommendationsByCalculatorType(calculatorType) {
-    return await ComplianceRecommendation.findAll({
-      where: { calculator_type: calculatorType }
-    });
+    return await ComplianceRecommendation.query().where('calculator_type', calculatorType);
   }
 
   /**
    * Get recommendations by non-compliance type
-   * @param {String} nonComplianceType - The non-compliance type
+   * @param {string} nonComplianceType - The non-compliance type
    * @returns {Promise<Array>} - Array of recommendations
    */
   static async getRecommendationsByNonComplianceType(nonComplianceType) {
-    return await ComplianceRecommendation.findAll({
-      where: { non_compliance_type: nonComplianceType }
-    });
+    return await ComplianceRecommendation.query().where('non_compliance_type', nonComplianceType);
   }
 
   /**
-   * Get a specific recommendation
-   * @param {Number} ruleId - Rule ID
-   * @param {String} nonComplianceType - Type of non-compliance
-   * @returns {Promise<Object>} - Recommendation
-   */
-  static async getSpecificRecommendation(ruleId, nonComplianceType) {
-    return await ComplianceRecommendation.findOne({
-      where: {
-        rule_id: ruleId,
-        non_compliance_type: nonComplianceType
-      }
-    });
-  }
-
-  /**
-   * Get recommendations by calculator type and priority
-   * @param {String} calculatorType - The calculator type
-   * @param {String} priority - The priority level
+   * Get recommendations by multiple criteria
+   * @param {Object} criteria - The search criteria
+   * @param {number} [criteria.ruleId] - Optional rule ID
+   * @param {string} [criteria.calculatorType] - Optional calculator type
+   * @param {string} [criteria.nonComplianceType] - Optional non-compliance type
+   * @param {string} [criteria.priority] - Optional priority
    * @returns {Promise<Array>} - Array of recommendations
    */
-  static async getRecommendationsByPriority(calculatorType, priority) {
-    return await ComplianceRecommendation.findAll({
-      where: {
-        calculator_type: calculatorType,
-        priority: priority
-      }
-    });
+  static async getRecommendationsByCriteria(criteria = {}) {
+    const query = ComplianceRecommendation.query();
+    
+    if (criteria.ruleId) {
+      query.where('rule_id', criteria.ruleId);
+    }
+    
+    if (criteria.calculatorType) {
+      query.where('calculator_type', criteria.calculatorType);
+    }
+    
+    if (criteria.nonComplianceType) {
+      query.where('non_compliance_type', criteria.nonComplianceType);
+    }
+    
+    if (criteria.priority) {
+      query.where('priority', criteria.priority);
+    }
+    
+    return await query;
   }
 }
-
-ComplianceRecommendation.init(
-  {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    ruleId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      field: 'rule_id'
-    },
-    nonComplianceType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'non_compliance_type'
-    },
-    recommendationText: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      field: 'recommendation_text'
-    },
-    priority: {
-      type: DataTypes.ENUM('high', 'medium', 'low'),
-      defaultValue: 'medium',
-      allowNull: false
-    },
-    calculatorType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'calculator_type'
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at'
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'updated_at'
-    }
-  },
-  {
-    sequelize,
-    modelName: 'ComplianceRecommendation',
-    tableName: 'compliance_recommendations',
-    underscored: true
-  }
-);
 
 module.exports = ComplianceRecommendation; 

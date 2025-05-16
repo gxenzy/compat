@@ -2,11 +2,78 @@
  * BuildingTypeStandard model
  * Represents standards values specific to building types
  */
-const { Model, DataTypes } = require('sequelize');
-const sequelize = require('../database/sequelize');
+const { Model } = require('objection');
+const db = require('../database/db');
 const Standard = require('./StandardModel');
 
+Model.knex(db);
+
+/**
+ * BuildingTypeStandard model representing the building_type_standards table
+ */
 class BuildingTypeStandard extends Model {
+  static get tableName() {
+    return 'building_type_standards';
+  }
+
+  static get idColumn() {
+    return 'id';
+  }
+
+  static get jsonSchema() {
+    return {
+      type: 'object',
+      required: ['building_type', 'standard_type', 'standard_code'],
+      
+      properties: {
+        id: { type: 'integer' },
+        building_type: { type: 'string', minLength: 1, maxLength: 255 },
+        standard_type: { type: 'string', minLength: 1, maxLength: 255 },
+        standard_code: { type: 'string', minLength: 1, maxLength: 255 },
+        minimum_value: { type: ['number', 'null'] },
+        maximum_value: { type: ['number', 'null'] },
+        unit: { type: ['string', 'null'], maxLength: 50 },
+        description: { type: ['string', 'null'] },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' }
+      }
+    };
+  }
+
+  // Validation rules
+  static get modelPaths() {
+    return [__dirname];
+  }
+
+  /**
+   * Applies additional validation rules beyond the JSON schema
+   */
+  $beforeInsert() {
+    this.created_at = new Date().toISOString();
+    this.updated_at = new Date().toISOString();
+    
+    // Ensure minimum_value <= maximum_value if both are defined
+    this.validateMinMaxValues();
+  }
+
+  $beforeUpdate() {
+    this.updated_at = new Date().toISOString();
+    
+    // Ensure minimum_value <= maximum_value if both are defined
+    this.validateMinMaxValues();
+  }
+
+  /**
+   * Validates that minimum_value <= maximum_value if both are defined
+   */
+  validateMinMaxValues() {
+    if (this.minimum_value !== null && this.maximum_value !== null &&
+        this.minimum_value !== undefined && this.maximum_value !== undefined &&
+        this.minimum_value > this.maximum_value) {
+      throw new Error('Minimum value cannot be greater than maximum value');
+    }
+  }
+
   static associate(models) {
     BuildingTypeStandard.belongsTo(models.Standard, {
       foreignKey: 'sourceStandardId',
@@ -20,9 +87,7 @@ class BuildingTypeStandard extends Model {
    * @returns {Promise<Array>} - Array of standards for the building type
    */
   static async getStandardsByBuildingType(buildingType) {
-    return await BuildingTypeStandard.findAll({
-      where: { building_type: buildingType }
-    });
+    return await BuildingTypeStandard.query().where('building_type', buildingType);
   }
 
   /**
@@ -32,12 +97,7 @@ class BuildingTypeStandard extends Model {
    * @returns {Promise<Array>} - Array of standards
    */
   static async getStandardsByTypeAndBuilding(buildingType, standardType) {
-    return await BuildingTypeStandard.findAll({
-      where: {
-        building_type: buildingType,
-        standard_type: standardType
-      }
-    });
+    return await BuildingTypeStandard.query().where('building_type', buildingType).andWhere('standard_type', standardType);
   }
 
   /**
@@ -48,13 +108,7 @@ class BuildingTypeStandard extends Model {
    * @returns {Promise<Object>} - The standard value
    */
   static async getStandardValue(buildingType, standardType, standardCode) {
-    return await BuildingTypeStandard.findOne({
-      where: {
-        building_type: buildingType,
-        standard_type: standardType,
-        standard_code: standardCode
-      }
-    });
+    return await BuildingTypeStandard.query().where('building_type', buildingType).andWhere('standard_type', standardType).andWhere('standard_code', standardCode).first();
   }
 
   /**
@@ -63,13 +117,7 @@ class BuildingTypeStandard extends Model {
    * @returns {Promise<Object>} - The EUI standard value
    */
   static async getEUIStandard(buildingType) {
-    return await BuildingTypeStandard.findOne({
-      where: {
-        building_type: buildingType,
-        standard_type: 'energy_efficiency',
-        standard_code: 'DOE-EE-EUI'
-      }
-    });
+    return await BuildingTypeStandard.query().where('building_type', buildingType).andWhere('standard_type', 'energy_efficiency').andWhere('standard_code', 'DOE-EE-EUI').first();
   }
 
   /**
@@ -78,84 +126,8 @@ class BuildingTypeStandard extends Model {
    * @returns {Promise<Object>} - The LPD standard value
    */
   static async getLPDStandard(buildingType) {
-    return await BuildingTypeStandard.findOne({
-      where: {
-        building_type: buildingType,
-        standard_type: 'illumination',
-        standard_code: 'PGBC-LPD'
-      }
-    });
+    return await BuildingTypeStandard.query().where('building_type', buildingType).andWhere('standard_type', 'illumination').andWhere('standard_code', 'PGBC-LPD').first();
   }
 }
-
-BuildingTypeStandard.init(
-  {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    buildingType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'building_type'
-    },
-    standardType: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'standard_type'
-    },
-    standardCode: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      field: 'standard_code'
-    },
-    minimumValue: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      field: 'minimum_value'
-    },
-    maximumValue: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-      field: 'maximum_value'
-    },
-    unit: {
-      type: DataTypes.STRING(20),
-      allowNull: true
-    },
-    sourceStandardId: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: 'standards',
-        key: 'id'
-      },
-      allowNull: true,
-      field: 'source_standard_id'
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'created_at'
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
-      field: 'updated_at'
-    }
-  },
-  {
-    sequelize,
-    modelName: 'BuildingTypeStandard',
-    tableName: 'building_type_standards',
-    underscored: true
-  }
-);
 
 module.exports = BuildingTypeStandard; 
