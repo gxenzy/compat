@@ -37,49 +37,6 @@ The platform includes a comprehensive Report Management System with the followin
 - Focus management for modals and dialogs
 - Color contrast optimized for better visibility
 
-## Development Setup for Windows
-
-Due to ESM module resolution issues with MUI packages in the current webpack/React configuration, follow these steps to resolve the problems:
-
-### Option 1: Fix Current Setup
-1. Delete the node_modules folder:
-```powershell
-Remove-Item node_modules -Recurse -Force
-```
-
-2. Downgrade MUI packages to compatible versions:
-```bash
-npm install --save @mui/material@5.6.4 @mui/icons-material@5.6.4 @mui/system@5.6.4 @mui/styles@5.6.4 @mui/utils@5.6.4 @mui/x-data-grid@5.10.0 @emotion/react@11.9.0 @emotion/styled@11.8.1
-```
-
-3. Use the alternate start script:
-```bash
-npm run start:direct
-```
-
-### Option 2: Create a Clean Installation
-If you continue to experience issues with the current setup, you can create a fresh React application to connect to the existing API:
-
-1. Create a new React app outside this folder:
-```bash
-npx create-react-app energy-audit-new --template typescript
-```
-
-2. Install required dependencies:
-```bash
-cd energy-audit-new
-npm install @mui/material @mui/icons-material @emotion/react @emotion/styled axios react-router-dom
-```
-
-3. Copy the src files from this project to your new project
-4. Update the API URL in the services to point to the correct backend
-
-## Environment Variables
-
-- `REACT_APP_API_URL`: API server URL (default: http://localhost:8000/api)
-- `WDS_SOCKET_HOST`: WebSocket host for development (default: localhost)
-- `DANGEROUSLY_DISABLE_HOST_CHECK`: Set to true to disable host header checking
-
 ## Available Scripts
 
 In the project directory, you can run:
@@ -96,18 +53,6 @@ Launches the test runner in the interactive watch mode.
 ### `npm run build`
 
 Builds the app for production to the `build` folder.
-
-### `npm run start:direct`
-
-Starts dev server using webpack.config.js
-
-### `npm run start:rewired`
-
-Starts dev server with react-app-rewired
-
-### `npm run eject`
-
-Ejects from create-react-app
 
 ## Learn More
 

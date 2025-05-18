@@ -18,15 +18,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "baseUrl": "src",
-    "types": [
-      "node",
-      "react",
-      "react-dom",
-      "react-router-dom",
-      "react-transition-group"
-    ]
+    "jsx": "react",
+    "baseUrl": "src"
   },
   "include": [
     "src",
